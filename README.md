@@ -14,10 +14,12 @@ A Progressive Web App for tracking Ramadan Iftar donations and expenses with rea
 - 📈 **Visual Analytics** - Charts and graphs for financial overview
 - 🔐 **Google OAuth** - Secure authentication with Google
 - 💾 **Cloud Database** - Cloudflare D1 for persistent data storage
-- 📱 **Progressive Web App** - Install on mobile devices
-- 🌙 **Beautiful UI** - Emerald and gold themed Islamic design
-- 📅 **Year-based Tracking** - Track multiple Ramadan campaigns with explicit year field
+- 📱 **Progressive Web App** - Install on mobile devices with custom install button
+- 🌙 **Beautiful UI** - Native mobile-first UI with glassmorphism design
+- 📅 **Year Management** - Custom Ramadan year tracking synced across devices
+- 🔄 **Multi-Device Sync** - Year preferences stored in database, synced everywhere
 - 🔒 **Read-only History** - Current year editable, previous years read-only
+- 👤 **User Profile Modal** - Profile info, PWA install, and sign out in one place
 
 ## Tech Stack
 
@@ -25,9 +27,10 @@ A Progressive Web App for tracking Ramadan Iftar donations and expenses with rea
 - **React 19** - UI framework
 - **TypeScript** - Type safety
 - **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling (via CDN)
+- **Tailwind CSS v4** - Styling via PostCSS (optimized bundle: 45.7KB / 7.58KB gzipped)
 - **Recharts** - Data visualization
 - **Lucide React** - Icon library
+- **Sharp** - Icon generation for PWA
 
 ### Backend
 - **Cloudflare Workers** - Serverless API
@@ -183,7 +186,10 @@ wrangler deployments list
 │   ├── Dashboard.tsx
 │   ├── DonationSection.tsx
 │   ├── ExpenseSection.tsx
-│   └── Layout.tsx
+│   ├── Layout.tsx
+│   ├── BottomSheet.tsx           # Mobile-native modal
+│   ├── UserProfileModal.tsx      # Profile + PWA install
+│   └── YearManagerModal.tsx      # Year management UI
 ├── services/           # Frontend services
 │   ├── authContext.tsx
 │   └── dbService.ts    # API client
@@ -195,8 +201,14 @@ wrangler deployments list
 │   │   ├── handlers.ts # API endpoints
 │   │   └── types.ts
 │   └── migrations/    # Database migrations
+│       ├── 0001_initial_schema.sql
+│       ├── 0002_add_year_field.sql
+│       └── 0003_add_available_years.sql
 ├── types.ts           # TypeScript types
 ├── constants.ts       # App constants
+├── tailwind.config.js # Tailwind CSS v4 config
+├── postcss.config.js  # PostCSS configuration
+├── index.css          # Global styles with @theme
 └── wrangler.toml     # Cloudflare config
 ```
 
@@ -227,6 +239,10 @@ All endpoints require Bearer token authentication (except `/api/auth/callback`):
 - `PUT /api/categories` - Update category
 - `DELETE /api/categories` - Delete category
 
+### User Preferences
+- `GET /api/user/preferences` - Get user's available years
+- `PUT /api/user/preferences` - Update available years
+
 ## Development Commands
 
 ```bash
@@ -241,6 +257,7 @@ npm run deploy:frontend  # Deploy frontend to Cloudflare Pages
 npm run db:create        # Create D1 database
 npm run db:migrate       # Run migrations (production)
 npm run db:migrate:local # Run migrations (local)
+npm run generate:icons   # Generate PWA icons from source
 ```
 
 ## 📊 Database Schema
@@ -250,6 +267,7 @@ npm run db:migrate:local # Run migrations (local)
 - `email` (TEXT UNIQUE NOT NULL) - User email
 - `name` (TEXT NOT NULL) - User full name
 - `picture` (TEXT) - Profile picture URL
+- `available_years` (TEXT) - JSON array of user's custom Ramadan years
 - `created_at` (TEXT) - Account creation timestamp
 
 ### Donations
@@ -283,9 +301,12 @@ npm run db:migrate:local # Run migrations (local)
 
 ### Database Features
 - **Year Tracking**: Explicit `year` field in donations and expenses for tracking multiple Ramadan campaigns
+- **User Year Preferences**: Custom available years stored in `users.available_years` as JSON
+- **Multi-Device Sync**: Year preferences automatically sync across all user devices
 - **Indexed Queries**: Indexed `year` fields for efficient filtering
 - **User Isolation**: All records tied to `user_id` for multi-tenant support
 - **Cascading Deletes**: Foreign keys maintain referential integrity
+- **Migration Path**: Auto-migrates localStorage years to database on first load
 
 ## 🐛 Troubleshooting
 
@@ -351,6 +372,19 @@ npx wrangler deploy --config wrangler.toml --verbose
 2. Ensure `manifest.json` is accessible
 3. Check service worker is registered: F12 → Application → Service Workers
 4. Verify `sw.js` has no errors in console
+5. **Use custom install button**: Click profile photo → "Install App" button
+6. On mobile Chrome, dismiss prompt is remembered - use custom button instead
+
+### Year preferences not syncing
+
+**Issue**: Custom years don't appear on other devices
+
+**Solutions**:
+1. Years are stored in database - ensure you're logged in with same Google account
+2. Click ⚙️ settings button next to year selector to manage years
+3. Changes save automatically via API to `users.available_years`
+4. Refresh page on other device to load updated years
+5. Check browser console for API errors: F12 → Console
 
 ## Contributing
 
@@ -384,6 +418,9 @@ For issues and questions, please open an issue on GitHub.
 ┌─────────────────────────────────────────┐
 │  Frontend (React + Vite)                │
 │  https://iftar-tracker.pages.dev        │
+│  - Native mobile-first UI               │
+│  - Glassmorphism design                 │
+│  - Tailwind CSS v4 (45.7KB optimized)   │
 └────────────┬────────────────────────────┘
              │ HTTPS + Bearer Token
              ↓
@@ -394,12 +431,14 @@ For issues and questions, please open an issue on GitHub.
 │  - CRUD: /api/donations                 │
 │           /api/expenses                  │
 │           /api/categories                │
+│  - Prefs: /api/user/preferences         │
 └────────────┬────────────────────────────┘
              │ SQL Queries
              ↓
 ┌─────────────────────────────────────────┐
 │  Cloudflare D1 (SQLite)                 │
-│  - users, donations, expenses           │
+│  - users (with available_years JSON)     │
+│  - donations, expenses (with year)       │
 │  - categories, sessions                  │
 └─────────────────────────────────────────┘
 ```
@@ -408,12 +447,14 @@ For issues and questions, please open an issue on GitHub.
 1. User logs in → Google OAuth → Session token stored in localStorage
 2. Frontend makes API calls with Bearer token
 3. Worker verifies session → Queries D1 database
-4. Results cached briefly in browser
-5. Service worker provides offline support
+4. Year preferences loaded from database (synced across devices)
+5. Results cached briefly in browser
+6. Service worker provides offline support
+7. PWA install available via custom button in user profile modal
 
 ## 🎉 Success Checklist
 
-- ✅ D1 database created and migrated
+- ✅ D1 database created and migrated (including 0003_add_available_years)
 - ✅ Google OAuth credentials configured
 - ✅ Environment variables set (`.env.local` and `.dev.vars`)
 - ✅ Local development servers running
@@ -421,6 +462,10 @@ For issues and questions, please open an issue on GitHub.
 - ✅ Production deployed to Cloudflare
 - ✅ Production redirect URI added to Google OAuth
 - ✅ PWA installable on mobile devices
+- ✅ Custom install button in user profile modal
+- ✅ Year preferences syncing across devices
+- ✅ Native mobile UI with glassmorphism design
+- ✅ Tailwind CSS v4 optimized (45.7KB bundle)
 
 ## Acknowledgments
 

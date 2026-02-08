@@ -6,10 +6,11 @@ A Progressive Web App for tracking Ramadan Iftar donations and expenses. Built w
 ## Architecture & Data Flow
 
 ### Tech Stack
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS (CDN)
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS v4 (PostCSS)
 - **Backend**: Cloudflare Workers (serverless API)
 - **Database**: Cloudflare D1 (SQLite)
 - **Auth**: Google OAuth 2.0
+- **UI**: Native mobile-first with glassmorphism design
 
 ### State Management
 - **Global state lives in [App.tsx](../App.tsx)**: `donations`, `expenses`, `selectedYear`, and `user` are managed here
@@ -36,7 +37,7 @@ A Progressive Web App for tracking Ramadan Iftar donations and expenses. Built w
 
 ### Database Schema
 [worker/migrations/0001_initial_schema.sql](../worker/migrations/0001_initial_schema.sql):
-- `users` - Google OAuth user data
+- `users` - Google OAuth user data with **available_years** JSON field
 - `donations` - Pledges with partial payment tracking and **year field** for Ramadan campaign tracking
 - `expenses` - Categorized expenses with **year field** for Ramadan campaign tracking
 - `categories` - User-specific and default categories
@@ -46,6 +47,12 @@ A Progressive Web App for tracking Ramadan Iftar donations and expenses. Built w
 - Added explicit `year` field to donations and expenses tables
 - Created indexes on year fields for efficient querying
 - Ensures data is explicitly associated with specific Ramadan campaigns, not just inferred from dates
+
+[worker/migrations/0003_add_available_years.sql](../worker/migrations/0003_add_available_years.sql):
+- Added `available_years` TEXT column to users table
+- Stores user's custom Ramadan years as JSON array
+- Enables cross-device year preferences syncing via database
+- Replaces localStorage-based year management for proper multi-device support
 
 ### Authentication Flow
 [services/authContext.tsx](../services/authContext.tsx) implements real Google OAuth:
@@ -58,19 +65,34 @@ A Progressive Web App for tracking Ramadan Iftar donations and expenses. Built w
 
 ### Year-Based Filtering & Read-Only Mode
 **Pattern**: Current year is editable, previous years are read-only
-- `isReadOnly = selectedYear !== currentYear` (see [App.tsx](../App.tsx) line 22)
+- `isReadOnly = selectedYear !== currentYear` (see [App.tsx](../App.tsx))
 - All mutation handlers check `isReadOnly` before executing
 - Database uses explicit `year` column for filtering: `WHERE year = ?`
 - Year field is automatically set to `selectedYear` when creating/updating donations or expenses
 - When adding new features with data modification, always respect this flag and include the year field
 
+### User Year Preferences (Database-backed)
+**Critical**: Year management uses **database, NOT localStorage**
+- Years stored in `users.available_years` as JSON array (e.g., `"[2024, 2025, 2026]"`)
+- API: `GET /api/user/preferences` and `PUT /api/user/preferences`
+- Loaded in [App.tsx](../App.tsx) via `dbService.getAvailableYears()` on user login
+- Auto-migrates old localStorage data to database on first load, then clears localStorage
+- Updated via [YearManagerModal.tsx](../components/YearManagerModal.tsx)
+- Syncs across all user's devices automatically
+- **Never use localStorage for year management** - always use database API
+
 ## UI Patterns & Styling
 
 ### Design System
 - **Theme**: Emerald (#047857) primary, Gold (#f59e0b) accent
-- **Tailwind via CDN**: Configured inline in [index.html](../index.html) with custom emerald/gold color extensions
+- **Tailwind CSS v4**: Configured via [index.css](../index.css) with `@import "tailwindcss"` and `@theme` directive
+- **PostCSS**: Uses @tailwindcss/postcss plugin for processing (see [postcss.config.js](../postcss.config.js))
+- **Bundle Size**: Optimized to 45.7KB (7.58KB gzipped) - 97% smaller than CDN approach
 - **Typography**: Inter (sans) for UI, Amiri (serif) for headings and emphasis
 - **Icons**: `lucide-react` package (e.g., `<Moon />`, `<Wallet />`)
+- **Mobile UI**: Native mobile-first design with glassmorphism (backdrop-blur-xl, bg-white/60)
+- **Navigation**: Bottom floating tab bar (z-50), FABs at bottom-28 (z-40), modals at z-60
+- **Animations**: Gradient blobs, slide-in modals, scale transitions on buttons
 
 ### Component Structure
 All components in [components/](../components/):
@@ -113,8 +135,9 @@ npm run deploy:frontend  # Deploy frontend to Cloudflare Pages
 - **Add new API endpoint**: Update [worker/src/handlers.ts](../worker/src/handlers.ts) and [worker/src/index.ts](../worker/src/index.ts)
 - **Add new entity types**: Update [types.ts](../types.ts), create migration in `worker/migrations/`, extend [dbService.ts](../services/dbService.ts)
 - **New UI sections**: Create component in `components/`, add tab to [App.tsx](../App.tsx) navigation
-- **Styling changes**: Modify Tailwind config in [index.html](../index.html) (lines 20-47)
+- **Styling changes**: Modify [tailwind.config.js](../tailwind.config.js) for colors/fonts, [index.css](../index.css) for custom CSS
 - **App metadata**: Update [manifest.json](../manifest.json)
+- **Icons**: Regenerate with `npm run generate:icons` after updating [public/icon-source.png](../public/icon-source.png)
 
 ### Environment Variables
 **Frontend** (`.env.local`):
@@ -178,13 +201,14 @@ id: crypto.randomUUID()
 ```
 
 ## Data Validation & Business Rules
-Ramadan Campaign Tracking**: All donations and expenses have a `year` field that explicitly associates them with a specific Ramadan campaign year
+- **Ramadan Campaign Tracking**: All donations and expenses have a `year` field that explicitly associates them with a specific Ramadan campaign year
 - **Partial Payments**: Donations have `pledgedAmount` vs `paidAmount` - always allow paidAmount ≤ pledgedAmount
-- **Year Filtering**: Database queries filter using indexed `year` column: `WHERE year = ?`nt ≤ pledgedAmount
-- **Year Filtering**: Database queries filter by `substr(date, 1, 4)` for SQLite compatibility
+- **Year Filtering**: Database queries filter using indexed `year` column: `WHERE year = ?`
 - **User Scoping**: All queries filter by `user_id` to isolate user data
 - **Currency Formatting**: Use `Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })` consistently
 - **Session Expiration**: Sessions expire after 30 days, checked on each API call
+- **Year Preferences**: Stored in database (users.available_years), NOT localStorage - syncs across devices
+- **Year Validation**: Years must be between 2020-2050, validated on API level
 
 ## Testing & Debugging
 - No test suite currently exists
