@@ -1,8 +1,7 @@
 export const APP_NAME = "Ramadan Iftar Fund";
 
-// In a real app, this would be your actual Google Client ID
-// Since we are in a demo environment, we will simulate auth if this is not set
-export const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || ""; 
+// Google OAuth Client ID from environment variables or .dev.vars
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "863590541870-453so31bng4g8tr228jfa6a2svk09b3p.apps.googleusercontent.com";
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
   'Food',
@@ -11,10 +10,3 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   'Marketing',
   'Other'
 ];
-
-export const MOCK_USER = {
-  id: "mock-user-123",
-  name: "Brother Ahmed",
-  email: "ahmed@example.com",
-  picture: "https://ui-avatars.com/api/?name=Brother+Ahmed&background=047857&color=fff"
-};

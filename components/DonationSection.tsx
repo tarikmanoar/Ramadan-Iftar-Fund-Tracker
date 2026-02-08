@@ -7,10 +7,11 @@ interface DonationSectionProps {
   onAdd: (donation: Omit<Donation, 'id' | 'userId'>) => Promise<void>;
   onUpdate: (donation: Donation) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  selectedYear: number;
   isReadOnly?: boolean;
 }
 
-export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onAdd, onUpdate, onDelete, isReadOnly = false }) => {
+export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onAdd, onUpdate, onDelete, selectedYear, isReadOnly = false }) => {
   const [formData, setFormData] = useState({
     donorName: '',
     pledgedAmount: '',
@@ -66,7 +67,8 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
           donorName: formData.donorName,
           pledgedAmount: parseFloat(formData.pledgedAmount) || 0,
           paidAmount: parseFloat(formData.paidAmount) || 0,
-          date: formData.date
+          date: formData.date,
+          year: selectedYear
         });
       }
     } else {
@@ -74,7 +76,8 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
         donorName: formData.donorName,
         pledgedAmount: parseFloat(formData.pledgedAmount) || 0,
         paidAmount: parseFloat(formData.paidAmount) || 0,
-        date: formData.date
+        date: formData.date,
+        year: selectedYear
       });
     }
 

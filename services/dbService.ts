@@ -1,154 +1,203 @@
-import { Donation, Expense, User } from '../types';
-import { DEFAULT_EXPENSE_CATEGORIES } from '../constants';
+import { Donation, Expense } from '../types';
 
-// NOTE: In a production environment with Cloudflare D1, these methods 
-// would make fetch() calls to your Cloudflare Worker endpoints.
-// For this SPA demo, we are using localStorage to simulate persistence 
-// so the app is immediately functional without backend deployment.
+// API Base URL - set via environment variable or default to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 
-const STORAGE_KEY_DONATIONS = 'iftar_app_donations';
-const STORAGE_KEY_EXPENSES = 'iftar_app_expenses';
-const STORAGE_KEY_CATEGORIES = 'iftar_app_categories';
-
-const getStoredDonations = (): Donation[] => {
-  const stored = localStorage.getItem(STORAGE_KEY_DONATIONS);
-  return stored ? JSON.parse(stored) : [];
+// Helper function to get session token
+const getSessionToken = (): string | null => {
+  return localStorage.getItem('iftar_session_token');
 };
 
-const getStoredExpenses = (): Expense[] => {
-  const stored = localStorage.getItem(STORAGE_KEY_EXPENSES);
-  return stored ? JSON.parse(stored) : [];
-};
+// Helper function to make authenticated API calls
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = getSessionToken();
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
 
-const getStoredCategories = (): string[] => {
-  const stored = localStorage.getItem(STORAGE_KEY_CATEGORIES);
-  return stored ? JSON.parse(stored) : DEFAULT_EXPENSE_CATEGORIES;
-};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      // Session expired, clear local storage
+      localStorage.removeItem('iftar_session_token');
+      localStorage.removeItem('iftar_user_session');
+      window.location.reload();
+    }
+    throw new Error(`API call failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
 
 export const dbService = {
   // Donations
   getDonations: async (userId: string, year: number): Promise<Donation[]> => {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const allDonations = getStoredDonations();
-    return allDonations.filter(d => {
-      const donationYear = new Date(d.date).getFullYear();
-      return d.userId === userId && donationYear === year;
-    });
+    const data = await apiCall<Donation[]>(`/api/donations?year=${year}`);
+    // Convert snake_case from DB to camelCase for frontend
+    return data.map(d => ({
+      id: d.id,
+      userId: (d as any).user_id || d.userId,
+      donorName: (d as any).donor_name || d.donorName,
+      pledgedAmount: (d as any).pledged_amount || d.pledgedAmount,
+      paidAmount: (d as any).paid_amount || d.paidAmount,
+      date: d.date,
+      year: d.year,
+      notes: d.notes,
+    }));
   },
 
   addDonation: async (donation: Donation): Promise<Donation> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const allDonations = getStoredDonations();
-    const newDonations = [...allDonations, donation];
-    localStorage.setItem(STORAGE_KEY_DONATIONS, JSON.stringify(newDonations));
-    return donation;
+    // Convert camelCase to snake_case for API
+    const apiData = {
+      donorName: donation.donorName,
+      pledgedAmount: donation.pledgedAmount,
+      paidAmount: donation.paidAmount,
+      date: donation.date,
+      year: donation.year,
+      notes: donation.notes,
+    };
+    
+    const result = await apiCall<any>('/api/donations', {
+      method: 'POST',
+      body: JSON.stringify(apiData),
+    });
+
+    return {
+      id: result.id,
+      userId: result.userId || donation.userId,
+      donorName: result.donorName,
+      pledgedAmount: result.pledgedAmount,
+      paidAmount: result.paidAmount,
+      date: result.date,
+      year: result.year,
+      notes: result.notes,
+    };
   },
 
   updateDonation: async (donation: Donation): Promise<Donation> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const allDonations = getStoredDonations();
-    const index = allDonations.findIndex(d => d.id === donation.id);
-    if (index !== -1) {
-      allDonations[index] = donation;
-      localStorage.setItem(STORAGE_KEY_DONATIONS, JSON.stringify(allDonations));
-    }
+    const apiData = {
+      id: donation.id,
+      donorName: donation.donorName,
+      pledgedAmount: donation.pledgedAmount,
+      paidAmount: donation.paidAmount,
+      date: donation.date,
+      year: donation.year,
+      notes: donation.notes,
+    };
+
+    await apiCall('/api/donations', {
+      method: 'PUT',
+      body: JSON.stringify(apiData),
+    });
+
     return donation;
   },
 
   deleteDonation: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const allDonations = getStoredDonations();
-    const newDonations = allDonations.filter(d => d.id !== id);
-    localStorage.setItem(STORAGE_KEY_DONATIONS, JSON.stringify(newDonations));
+    await apiCall('/api/donations', {
+      method: 'DELETE',
+      body: JSON.stringify({ id }),
+    });
   },
 
   // Expenses
   getExpenses: async (userId: string, year: number): Promise<Expense[]> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const allExpenses = getStoredExpenses();
-    return allExpenses.filter(e => {
-      const expenseYear = new Date(e.date).getFullYear();
-      return e.userId === userId && expenseYear === year;
-    });
+    const data = await apiCall<Expense[]>(`/api/expenses?year=${year}`);
+    // Convert snake_case from DB to camelCase for frontend
+    return data.map(e => ({
+      id: e.id,
+      userId: (e as any).user_id || e.userId,
+      description: e.description,
+      amount: e.amount,
+      category: e.category,
+      date: e.date,
+      year: e.year,
+    }));
   },
 
   addExpense: async (expense: Expense): Promise<Expense> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const allExpenses = getStoredExpenses();
-    const newExpenses = [...allExpenses, expense];
-    localStorage.setItem(STORAGE_KEY_EXPENSES, JSON.stringify(newExpenses));
-    return expense;
+    const apiData = {
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      date: expense.date,
+      year: expense.year,
+    };
+
+    const result = await apiCall<any>('/api/expenses', {
+      method: 'POST',
+      body: JSON.stringify(apiData),
+    });
+
+    return {
+      id: result.id,
+      userId: result.userId || expense.userId,
+      description: result.description,
+      amount: result.amount,
+      category: result.category,
+      date: result.date,
+      year: result.year,
+    };
   },
 
   updateExpense: async (expense: Expense): Promise<Expense> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const allExpenses = getStoredExpenses();
-    const index = allExpenses.findIndex(e => e.id === expense.id);
-    if (index !== -1) {
-      allExpenses[index] = expense;
-      localStorage.setItem(STORAGE_KEY_EXPENSES, JSON.stringify(allExpenses));
-    }
+    const apiData = {
+      id: expense.id,
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      date: expense.date,
+      year: expense.year,
+    };
+
+    await apiCall('/api/expenses', {
+      method: 'PUT',
+      body: JSON.stringify(apiData),
+    });
+
     return expense;
   },
 
   deleteExpense: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const allExpenses = getStoredExpenses();
-    const newExpenses = allExpenses.filter(e => e.id !== id);
-    localStorage.setItem(STORAGE_KEY_EXPENSES, JSON.stringify(newExpenses));
+    await apiCall('/api/expenses', {
+      method: 'DELETE',
+      body: JSON.stringify({ id }),
+    });
   },
 
   // Categories
   getCategories: async (): Promise<string[]> => {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return getStoredCategories();
+    return await apiCall<string[]>('/api/categories');
   },
 
   addCategory: async (category: string): Promise<string[]> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const categories = getStoredCategories();
-    if (!categories.includes(category)) {
-      const newCategories = [...categories, category];
-      localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(newCategories));
-      return newCategories;
-    }
-    return categories;
+    return await apiCall<string[]>('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify({ category }),
+    });
   },
 
   updateCategory: async (oldName: string, newName: string): Promise<string[]> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const categories = getStoredCategories();
-    const index = categories.indexOf(oldName);
-    
-    if (index !== -1 && !categories.includes(newName)) {
-      // Update Category List
-      categories[index] = newName;
-      localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(categories));
-      
-      // Update all expenses using this category
-      const allExpenses = getStoredExpenses();
-      let hasChanges = false;
-      const updatedExpenses = allExpenses.map(e => {
-        if (e.category === oldName) {
-          hasChanges = true;
-          return { ...e, category: newName };
-        }
-        return e;
-      });
-
-      if (hasChanges) {
-        localStorage.setItem(STORAGE_KEY_EXPENSES, JSON.stringify(updatedExpenses));
-      }
-    }
-    return categories;
+    return await apiCall<string[]>('/api/categories', {
+      method: 'PUT',
+      body: JSON.stringify({ oldName, newName }),
+    });
   },
 
   deleteCategory: async (category: string): Promise<string[]> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const categories = getStoredCategories();
-    const newCategories = categories.filter(c => c !== category);
-    localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(newCategories));
-    return newCategories;
-  }
+    return await apiCall<string[]>('/api/categories', {
+      method: 'DELETE',
+      body: JSON.stringify({ category }),
+    });
+  },
 };

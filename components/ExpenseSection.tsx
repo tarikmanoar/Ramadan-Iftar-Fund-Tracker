@@ -8,11 +8,12 @@ interface ExpenseSectionProps {
   onAdd: (expense: Omit<Expense, 'id' | 'userId'>) => Promise<void>;
   onUpdate: (expense: Expense) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  selectedYear: number;
   onCategoryChange?: () => void;
   isReadOnly?: boolean;
 }
 
-export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd, onUpdate, onDelete, onCategoryChange, isReadOnly = false }) => {
+export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd, onUpdate, onDelete, selectedYear, onCategoryChange, isReadOnly = false }) => {
   const [categories, setCategories] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     description: '',
@@ -130,7 +131,8 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
           description: formData.description,
           amount: parseFloat(formData.amount) || 0,
           category: finalCategory,
-          date: formData.date
+          date: formData.date,
+          year: selectedYear
         });
       }
     } else {
@@ -138,7 +140,8 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
         description: formData.description,
         amount: parseFloat(formData.amount) || 0,
         category: finalCategory,
-        date: formData.date
+        date: formData.date,
+        year: selectedYear
       });
     }
 

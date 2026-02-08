@@ -70,7 +70,8 @@ function App() {
     const newDonation: Donation = {
       ...data,
       id: crypto.randomUUID(),
-      userId: user.id
+      userId: user.id,
+      year: data.year || selectedYear // Ensure year is set
     };
     await dbService.addDonation(newDonation);
     setDonations(prev => [...prev, newDonation]);
@@ -93,7 +94,8 @@ function App() {
     const newExpense: Expense = {
       ...data,
       id: crypto.randomUUID(),
-      userId: user.id
+      userId: user.id,
+      year: data.year || selectedYear // Ensure year is set
     };
     await dbService.addExpense(newExpense);
     setExpenses(prev => [...prev, newExpense]);
@@ -230,6 +232,7 @@ function App() {
                 onAdd={handleAddDonation}
                 onUpdate={handleUpdateDonation}
                 onDelete={handleDeleteDonation}
+                selectedYear={selectedYear}
                 isReadOnly={isReadOnly}
               />
             )}
@@ -239,6 +242,7 @@ function App() {
                 onAdd={handleAddExpense}
                 onUpdate={handleUpdateExpense}
                 onDelete={handleDeleteExpense}
+                selectedYear={selectedYear}
                 onCategoryChange={handleCategoryChange}
                 isReadOnly={isReadOnly}
               />

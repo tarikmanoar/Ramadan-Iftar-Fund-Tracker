@@ -5,20 +5,31 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:worker": "wrangler dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:worker\"",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:worker": "cd worker && tsc",
+    "preview": "vite preview",
+    "deploy:worker": "wrangler deploy",
+    "deploy:frontend": "wrangler pages deploy dist --project-name=iftar-tracker",
+    "db:create": "wrangler d1 create iftar-fund-db",
+    "db:migrate": "wrangler d1 migrations apply iftar-fund-db",
+    "db:migrate:local": "wrangler d1 migrations apply iftar-fund-db --local"
   },
   "dependencies": {
-    "recharts": "^3.7.0",
-    "react": "^19.2.4",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "clsx": "^2.1.1"
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250110.0",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^8.2.2",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "wrangler": "^4.63.0"
   }
 }

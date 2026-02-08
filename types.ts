@@ -12,6 +12,7 @@ export interface Donation {
   pledgedAmount: number;
   paidAmount: number;
   date: string;
+  year: number;
   notes?: string;
 }
 
@@ -20,8 +21,9 @@ export interface Expense {
   userId: string;
   description: string;
   amount: number;
-  category: string; // Changed from ExpenseCategory enum to string to allow custom categories
+  category: string;
   date: string;
+  year: number;
 }
 
 export interface DashboardSummary {

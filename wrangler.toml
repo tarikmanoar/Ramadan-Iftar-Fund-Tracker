@@ -1,0 +1,37 @@
+name = "ramadan-iftar-fund-tracker"
+main = "worker/src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "iftar-fund-db"
+database_id = "71fed693-f8e1-4d91-ab19-af7a58c152e7"
+migrations_dir = "worker/migrations"
+
+# Environment Variables
+[vars]
+FRONTEND_URL = "https://iftar-tracker.pages.dev"
+
+# For local development, use .dev.vars file with:
+# GOOGLE_CLIENT_ID="your-client-id"
+# GOOGLE_CLIENT_SECRET="your-client-secret"
+# SESSION_SECRET="your-session-secret"
+
+# For production, set secrets via: wrangler secret put <KEY>
+# GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET
+# SESSION_SECRET
+
+# Routes for production
+# [[routes]]
+# pattern = "api.yourdomain.com/*"
+# zone_name = "yourdomain.com"
+
+# Build configuration
+[build]
+command = "npm run build:worker"
+
+# Dev server configuration
+[dev]
+port = 8787

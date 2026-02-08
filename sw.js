@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iftar-fund-v1';
+const CACHE_NAME = 'iftar-fund-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -36,12 +36,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Don't intercept cross-origin API calls (let browser handle them directly)
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   // Strategy: Network Only for Data/API calls
   // (Ensures we never serve stale data from cache)
   if (url.pathname.includes('/api/') || url.href.includes('google')) {
     event.respondWith(
       fetch(event.request)
-        .catch(() => {
+        .catch((error) => {
+          console.error('Service Worker fetch failed:', error);
           // Optional: Return a specific offline JSON response for data
           return new Response(JSON.stringify({ error: 'Network error' }), {
             headers: { 'Content-Type': 'application/json' }
