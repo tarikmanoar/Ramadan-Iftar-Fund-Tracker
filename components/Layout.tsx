@@ -1,7 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState } from 'react';
 import { useAuth } from '../services/authContext';
-import { Moon, LogOut } from 'lucide-react';
+import { Moon } from 'lucide-react';
 import { APP_NAME } from '../constants';
+import { UserProfileModal } from './UserProfileModal';
 
 interface LayoutProps {
   children: ReactNode;
@@ -11,6 +12,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChange }) => {
   const { user, logout } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-slate-50 to-gold-50 flex flex-col relative overflow-hidden">
@@ -35,7 +37,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChang
           </div>
 
           {user && (
-            <div className="flex items-center space-x-2">
+            <button 
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center space-x-2 hover:opacity-80 active:scale-95 transition-all"
+            >
               {user.picture ? (
                 <img src={user.picture} alt={user.name} className="w-10 h-10 rounded-2xl border-2 border-white shadow-lg" />
               ) : (
@@ -43,14 +48,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChang
                   {user.name.charAt(0)}
                 </div>
               )}
-              <button 
-                onClick={logout}
-                className="p-2.5 bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg hover:shadow-xl active:scale-95 transition-all border border-white/60"
-                title="Sign Out"
-              >
-                <LogOut size={18} className="text-slate-700" />
-              </button>
-            </div>
+            </button>
           )}
         </div>
       </header>
@@ -109,6 +107,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChang
             </div>
           </div>
         </nav>
+      )}
+
+      {/* User Profile Modal */}
+      {user && (
+        <UserProfileModal 
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          user={user}
+          onLogout={() => {
+            setIsProfileModalOpen(false);
+            logout();
+          }}
+        />
       )}
     </div>
   );
