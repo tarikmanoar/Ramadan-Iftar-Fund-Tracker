@@ -1,0 +1,1 @@
+A comprehensive dashboard to track donations and expenses for Ramadan Iftar funds, featuring a beautiful emerald and gold theme, data persistence, and Google OAuth integration.

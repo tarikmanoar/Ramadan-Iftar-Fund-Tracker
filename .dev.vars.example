@@ -1,0 +1,6 @@
+# Environment variables for local development
+# Copy this to .dev.vars and fill in your values
+
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+SESSION_SECRET=""
