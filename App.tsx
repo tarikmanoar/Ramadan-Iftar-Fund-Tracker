@@ -6,7 +6,8 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { DonationSection } from './components/DonationSection';
 import { ExpenseSection } from './components/ExpenseSection';
-import { Moon, LayoutDashboard, HeartHandshake, ReceiptText, CalendarRange, Lock } from 'lucide-react';
+import { YearManagerModal } from './components/YearManagerModal';
+import { Moon, LayoutDashboard, HeartHandshake, ReceiptText, CalendarRange, Lock, Settings } from 'lucide-react';
 import clsx from 'clsx';
 
 function App() {
@@ -16,7 +17,59 @@ function App() {
   // Year Management
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+  const [availableYears, setAvailableYears] = useState<number[]>([currentYear - 2, currentYear - 1, currentYear, currentYear + 1]);
+  const [isYearManagerOpen, setIsYearManagerOpen] = useState(false);
+  const [yearsLoading, setYearsLoading] = useState(true);
+  
+  // Load available years from database
+  useEffect(() => {
+    const loadAvailableYears = async () => {
+      if (!user) {
+        setYearsLoading(false);
+        return;
+      }
+
+      try {
+        // Try to get years from database
+        const dbYears = await dbService.getAvailableYears();
+        
+        // Check if localStorage has years that should be migrated
+        const localStorageYears = localStorage.getItem('ramadan_years');
+        if (localStorageYears && dbYears.length === 4) {
+          // Migrate localStorage years to database
+          const parsedLocalYears = JSON.parse(localStorageYears);
+          if (Array.isArray(parsedLocalYears) && parsedLocalYears.length > 0) {
+            const migratedYears = await dbService.updateAvailableYears(parsedLocalYears);
+            setAvailableYears(migratedYears);
+            // Clear localStorage after successful migration
+            localStorage.removeItem('ramadan_years');
+          } else {
+            setAvailableYears(dbYears);
+          }
+        } else {
+          setAvailableYears(dbYears);
+        }
+      } catch (error) {
+        console.error('Failed to load available years:', error);
+        // Fallback to defaults
+        setAvailableYears([currentYear - 2, currentYear - 1, currentYear, currentYear + 1]);
+      } finally {
+        setYearsLoading(false);
+      }
+    };
+
+    loadAvailableYears();
+  }, [user, currentYear]);
+  
+  // Save years to database whenever they change
+  const handleYearsUpdate = async (years: number[]) => {
+    try {
+      const updatedYears = await dbService.updateAvailableYears(years);
+      setAvailableYears(updatedYears);
+    } catch (error) {
+      console.error('Failed to update years:', error);
+    }
+  };
   
   // Read-only mode for previous years
   const isReadOnly = selectedYear !== currentYear;
@@ -199,15 +252,25 @@ function App() {
                </div>
              </div>
 
-             <select 
-               value={selectedYear} 
-               onChange={(e) => setActiveTab('dashboard') || setSelectedYear(parseInt(e.target.value))}
-               className="bg-white/80 backdrop-blur-xl border-2 border-emerald-200 text-slate-800 font-bold rounded-2xl px-5 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer shadow-lg hover:shadow-xl transition-all active:scale-95"
-             >
-               {availableYears.map(year => (
-                 <option key={year} value={year}>{year}</option>
-               ))}
-             </select>
+             <div className="flex items-center space-x-2">
+               <select 
+                 value={selectedYear} 
+                 onChange={(e) => setActiveTab('dashboard') || setSelectedYear(parseInt(e.target.value))}
+                 className="bg-white/80 backdrop-blur-xl border-2 border-emerald-200 text-slate-800 font-bold rounded-2xl px-5 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer shadow-lg hover:shadow-xl transition-all active:scale-95"
+               >
+                 {availableYears.sort((a, b) => b - a).map(year => (
+                   <option key={year} value={year}>{year}</option>
+                 ))}
+               </select>
+               
+               <button
+                 onClick={() => setIsYearManagerOpen(true)}
+                 className="p-3 bg-white/80 backdrop-blur-xl border-2 border-slate-200 text-slate-700 rounded-2xl shadow-lg hover:shadow-xl hover:border-emerald-300 active:scale-95 transition-all"
+                 title="Manage Years"
+               >
+                 <Settings size={20} />
+               </button>
+             </div>
            </div>
 
            {isReadOnly && (
@@ -254,6 +317,17 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Year Manager Modal */}
+      <YearManagerModal 
+        isOpen={isYearManagerOpen}
+        onClose={() => setIsYearManagerOpen(false)}
+        availableYears={availableYears}
+        selectedYear={selectedYear}
+        onYearsUpdate={handleYearsUpdate}
+        onYearSelect={setSelectedYear}
+        currentYear={currentYear}
+      />
     </Layout>
   );
 }

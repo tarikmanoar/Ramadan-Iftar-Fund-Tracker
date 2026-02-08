@@ -207,3 +207,58 @@ export async function handleCategories(request: Request, env: Env, user: User): 
 
   return jsonResponse({ error: 'Method not allowed' }, 405);
 }
+
+export async function handleUserPreferences(request: Request, env: Env, user: User): Promise<Response> {
+  if (request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      'SELECT available_years FROM users WHERE id = ?'
+    ).bind(user.id).all();
+
+    if (results.length === 0) {
+      return jsonResponse({ error: 'User not found' }, 404);
+    }
+
+    const storedYears = (results[0] as any).available_years as string | null;
+    let availableYears;
+
+    if (storedYears) {
+      try {
+        availableYears = JSON.parse(storedYears);
+      } catch (e) {
+        // Invalid JSON, return defaults
+        const currentYear = new Date().getFullYear();
+        availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+      }
+    } else {
+      // No years stored, return defaults
+      const currentYear = new Date().getFullYear();
+      availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+    }
+
+    return jsonResponse({ availableYears });
+  }
+
+  if (request.method === 'PUT') {
+    const body = await request.json<any>();
+    
+    if (!Array.isArray(body.availableYears)) {
+      return jsonResponse({ error: 'availableYears must be an array' }, 400);
+    }
+
+    // Validate years are numbers
+    const validYears = body.availableYears.every((y: any) => typeof y === 'number' && y >= 2020 && y <= 2050);
+    if (!validYears) {
+      return jsonResponse({ error: 'All years must be numbers between 2020 and 2050' }, 400);
+    }
+
+    const yearsJson = JSON.stringify(body.availableYears);
+
+    await env.DB.prepare(
+      'UPDATE users SET available_years = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(yearsJson, user.id).run();
+
+    return jsonResponse({ availableYears: body.availableYears });
+  }
+
+  return jsonResponse({ error: 'Method not allowed' }, 405);
+}

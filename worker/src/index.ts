@@ -1,6 +1,6 @@
 import { Env } from './types';
 import { verifySession, corsHeaders, jsonResponse } from './auth';
-import { handleDonations, handleExpenses, handleCategories } from './handlers';
+import { handleDonations, handleExpenses, handleCategories, handleUserPreferences } from './handlers';
 import { handleGoogleCallback, handleLogout, handleVerifySession } from './oauth';
 
 export default {
@@ -75,6 +75,14 @@ export default {
 
       if (url.pathname === '/api/categories') {
         const response = await handleCategories(request, env, user);
+        return new Response(response.body, {
+          status: response.status,
+          headers: { ...headers, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.pathname === '/api/user/preferences') {
+        const response = await handleUserPreferences(request, env, user);
         return new Response(response.body, {
           status: response.status,
           headers: { ...headers, 'Content-Type': 'application/json' },

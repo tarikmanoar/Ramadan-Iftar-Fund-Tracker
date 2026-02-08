@@ -200,4 +200,18 @@ export const dbService = {
       body: JSON.stringify({ category }),
     });
   },
+
+  // User Preferences
+  getAvailableYears: async (): Promise<number[]> => {
+    const response = await apiCall<{ availableYears: number[] }>('/api/user/preferences');
+    return response.availableYears;
+  },
+
+  updateAvailableYears: async (years: number[]): Promise<number[]> => {
+    const response = await apiCall<{ availableYears: number[] }>('/api/user/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ availableYears: years }),
+    });
+    return response.availableYears;
+  },
 };
