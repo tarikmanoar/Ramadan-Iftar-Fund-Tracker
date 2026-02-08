@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Expense } from '../types';
 import { dbService } from '../services/dbService';
-import { Plus, Trash2, Calendar, DollarSign, Tag, FileText, Edit2, X, Settings, Check, Edit3, Lock } from 'lucide-react';
+import { Plus, Trash2, Calendar, Tag, FileText, Edit2, X, Settings, Check, Edit3, Lock, Receipt, AlertCircle } from 'lucide-react';
+import { BottomSheet } from './BottomSheet';
 
 interface ExpenseSectionProps {
   expenses: Expense[];
@@ -33,6 +34,7 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -56,6 +58,7 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
     setEditingId(null);
     setIsAddingCategory(false);
     setNewCategoryName('');
+    setIsFormOpen(false);
   };
 
   const handleEditClick = (expense: Expense) => {
@@ -68,13 +71,13 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
     });
     setEditingId(expense.id);
     setIsAddingCategory(false);
-    if (window.innerWidth < 1024) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    setIsFormOpen(true);
   };
 
-  const handleCancelEdit = () => {
+  const handleOpenForm = () => {
+    if (isReadOnly) return;
     resetForm();
+    setIsFormOpen(true);
   };
 
   const handleAddCategory = async () => {
@@ -150,65 +153,68 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
   };
 
   return (
-    <div className={`grid grid-cols-1 ${!isReadOnly ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6 relative`}>
+    <div className="space-y-3 relative pb-6">
       
       {/* Category Manager Modal */}
       {isManagingCategories && !isReadOnly && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md border-t-4 border-blue-500 max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-6 w-full max-w-md border-t-4 border-blue-500 max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                <div className="bg-blue-100 p-2 rounded-full mr-2 text-blue-600">
+                <div className="bg-gradient-to-br from-blue-400 to-blue-500 p-2.5 rounded-2xl mr-3 text-white shadow-lg shadow-blue-500/30">
                   <Settings size={20} />
                 </div>
                 Manage Categories
               </h3>
-              <button onClick={() => setIsManagingCategories(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsManagingCategories(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
 
             <div className="overflow-y-auto flex-1 pr-2 space-y-2">
               {categories.map(cat => (
-                <div key={cat} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 group hover:border-blue-200 transition-colors">
+                <div key={cat} className="flex items-center justify-between p-4 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/80 group hover:shadow-lg transition-all">
                   {editingCategory === cat ? (
                     <div className="flex items-center flex-1 space-x-2">
                       <input 
                         type="text" 
                         value={editCategoryName}
                         onChange={(e) => setEditCategoryName(e.target.value)}
-                        className="flex-1 px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border-2 border-blue-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         autoFocus
                       />
                       <button 
                         onClick={() => handleUpdateCategory(cat)}
-                        className="p-1 text-emerald-600 hover:bg-emerald-100 rounded"
+                        className="p-2 text-emerald-600 bg-emerald-100 hover:bg-emerald-200 rounded-xl transition-colors active:scale-95"
                         title="Save"
                       >
-                        <Check size={16} />
+                        <Check size={18} />
                       </button>
                       <button 
                         onClick={() => setEditingCategory(null)}
-                        className="p-1 text-slate-500 hover:bg-slate-200 rounded"
+                        className="p-2 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors active:scale-95"
                         title="Cancel"
                       >
-                        <X size={16} />
+                        <X size={18} />
                       </button>
                     </div>
                   ) : (
                     <>
-                      <span className="font-medium text-slate-700">{cat}</span>
+                      <span className="font-bold text-slate-700 flex items-center">
+                        <span className="w-2 h-2 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full mr-2"></span>
+                        {cat}
+                      </span>
                       <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => { setEditingCategory(cat); setEditCategoryName(cat); }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"
+                          className="p-2 text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-xl transition-all active:scale-95"
                           title="Rename"
                         >
                           <Edit3 size={16} />
                         </button>
                         <button 
                           onClick={() => handleDeleteCategory(cat)}
-                          className="p-1.5 text-red-500 hover:bg-red-100 rounded"
+                          className="p-2 text-red-500 bg-red-100 hover:bg-red-200 rounded-xl transition-all active:scale-95"
                           title="Delete"
                         >
                           <Trash2 size={16} />
@@ -220,10 +226,10 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
               ))}
             </div>
             
-            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+            <div className="mt-6 pt-4 border-t border-slate-200 flex justify-end">
                <button
                  onClick={() => setIsManagingCategories(false)}
-                 className="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors"
+                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/40 hover:shadow-xl transition-all active:scale-95"
                >
                  Done
                </button>
@@ -232,207 +238,219 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
         </div>
       )}
 
-      {/* Form Section - Hidden if Read Only */}
-      {!isReadOnly && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 h-fit relative">
-          <h3 className="text-xl font-serif font-bold text-slate-800 mb-6 flex items-center justify-between">
-            <div className="flex items-center">
-              <span className={`w-8 h-8 rounded-full ${editingId ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-500'} flex items-center justify-center mr-3`}>
-                {editingId ? <Edit2 size={18} /> : <Plus size={18} />}
-              </span>
-              {editingId ? 'Edit Expense' : 'New Expense'}
+      {/* Form Bottom Sheet */}
+      <BottomSheet
+        isOpen={isFormOpen}
+        onClose={resetForm}
+        title={editingId ? 'Edit Expense' : 'New Expense'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4 pb-6">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
+            <div className="relative">
+              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                required
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-base"
+                placeholder="Iftar Boxes"
+              />
             </div>
-            {editingId && (
-              <button 
-                onClick={handleCancelEdit}
-                className="text-xs flex items-center text-slate-500 hover:text-red-500 bg-slate-100 hover:bg-red-50 px-2 py-1 rounded transition-colors"
-              >
-                <X size={14} className="mr-1" /> Cancel
-              </button>
-            )}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  required
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
-                  placeholder="Iftar Boxes"
-                />
-              </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Amount</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 font-bold">৳</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                value={formData.amount}
+                onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                className="w-full pl-10 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-base"
+                placeholder="0.00"
+              />
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Amount</label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  value={formData.amount}
-                  onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
+          </div>
 
-            <div>
-               <div className="flex justify-between items-center mb-1">
-                 <label className="block text-sm font-medium text-slate-700">Category</label>
-                 {!isAddingCategory && (
-                   <button 
-                     type="button" 
-                     onClick={() => setIsManagingCategories(true)}
-                     className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                   >
-                     <Settings size={12} className="mr-1" /> Manage
-                   </button>
-                 )}
-               </div>
-               <div className="relative">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  {isAddingCategory ? (
-                     <div className="flex space-x-2">
-                       <input
-                         type="text"
-                         autoFocus
-                         value={newCategoryName}
-                         onChange={e => setNewCategoryName(e.target.value)}
-                         placeholder="New Category Name"
-                         className="w-full pl-10 pr-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                       />
-                       <button 
-                         type="button" 
-                         onClick={() => setIsAddingCategory(false)}
-                         className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
-                       >
-                         <X size={20} />
-                       </button>
-                     </div>
-                  ) : (
-                    <select
-                      value={formData.category}
-                      onChange={(e) => {
-                        if (e.target.value === '__NEW__') {
-                          setIsAddingCategory(true);
-                        } else {
-                          setFormData({ ...formData, category: e.target.value });
-                        }
-                      }}
-                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all bg-white appearance-none"
-                    >
-                      {categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                      <option value="__NEW__" className="font-bold text-blue-600">+ Create New Category</option>
-                    </select>
-                  )}
-               </div>
-            </div>
+          <div>
+             <div className="flex justify-between items-center mb-2">
+               <label className="block text-sm font-bold text-slate-700">Category</label>
+               {!isAddingCategory && (
+                 <button 
+                   type="button" 
+                   onClick={() => setIsManagingCategories(true)}
+                   className="text-xs text-blue-600 hover:text-blue-800 flex items-center font-semibold bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                 >
+                   <Settings size={12} className="mr-1" /> Manage
+                 </button>
+               )}
+             </div>
+             <div className="relative">
+                <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                {isAddingCategory ? (
+                   <div className="flex space-x-2">
+                     <input
+                       type="text"
+                       autoFocus
+                       value={newCategoryName}
+                       onChange={e => setNewCategoryName(e.target.value)}
+                       placeholder="New Category Name"
+                       className="w-full pl-12 pr-4 py-4 border-2 border-blue-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-base"
+                     />
+                     <button 
+                       type="button" 
+                       onClick={() => setIsAddingCategory(false)}
+                       className="p-4 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-colors active:scale-95"
+                     >
+                       <X size={20} />
+                     </button>
+                   </div>
+                ) : (
+                  <select
+                    value={formData.category}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW__') {
+                        setIsAddingCategory(true);
+                      } else {
+                        setFormData({ ...formData, category: e.target.value });
+                      }
+                    }}
+                    className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all bg-white appearance-none text-base font-medium"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    <option value="__NEW__" className="font-bold text-blue-600">+ Create New Category</option>
+                  </select>
+                )}
+             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="date"
-                  required
-                  value={formData.date}
-                  onChange={e => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
-                />
-              </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Date</label>
+            <div className="relative">
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="date"
+                required
+                value={formData.date}
+                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-base"
+              />
             </div>
+          </div>
 
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={`w-full text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${
+              editingId 
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-blue-500/40' 
+                : 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/40'
+            }`}
+          >
+            {isSubmitting ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Expense' : 'Add Expense')}
+          </button>
+        </form>
+      </BottomSheet>
+
+      {/* Expense Cards - Mobile Native */}
+      {expenses.length === 0 ? (
+        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-12 text-center">
+          <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={36} className="text-red-600" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">No expenses yet</h3>
+          <p className="text-sm text-slate-500 mb-6">Start tracking expenses by adding your first entry</p>
+          {!isReadOnly && (
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full text-white font-medium py-2.5 rounded-lg shadow-sm transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${
-                 editingId 
-                  ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' 
-                  : 'bg-red-500 hover:bg-red-600 shadow-red-200'
-              }`}
+              onClick={handleOpenForm}
+              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg shadow-red-500/40 hover:shadow-xl transition-all active:scale-95"
             >
-              {isSubmitting ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Expense' : 'Add Expense')}
+              Add First Expense
             </button>
-          </form>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {expenses.map((expense) => {
+            return (
+              <div
+                key={expense.id}
+                className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5 hover:shadow-xl transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center mb-2">
+                      <span className="px-3 py-1 text-xs font-bold bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 rounded-full border border-slate-300 flex items-center">
+                        <Tag size={12} className="mr-1" />
+                        {expense.category}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">{expense.description}</h3>
+                    <p className="text-xs text-slate-500 flex items-center">
+                      <Calendar size={12} className="mr-1" />
+                      {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+
+                  {!isReadOnly && (
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => handleEditClick(expense)}
+                        className="p-2.5 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-2xl transition-all active:scale-95"
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => onDelete(expense.id)}
+                        className="p-2.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-2xl transition-all active:scale-95"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Amount Display */}
+                <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl p-4 border border-red-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-600 font-medium flex items-center">
+                      <Receipt size={16} className="mr-2 text-red-500" />
+                      Amount Spent
+                    </span>
+                    <span className="text-2xl font-bold text-red-600">৳{expense.amount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* List Section */}
-      <div className={`${!isReadOnly ? 'lg:col-span-2' : ''} bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col`}>
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <h3 className="text-xl font-serif font-bold text-slate-800">Expense History</h3>
-          {isReadOnly && (
-            <span className="text-xs font-semibold text-slate-500 bg-slate-200 px-2 py-1 rounded flex items-center">
-              <Lock size={12} className="mr-1" /> Read Only
-            </span>
-          )}
+      {/* Floating Action Button */}
+      {!isReadOnly && expenses.length > 0 && (
+        <button
+          onClick={handleOpenForm}
+          className="fixed bottom-24 right-6 z-40 w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full shadow-2xl shadow-red-500/50 flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+        >
+          <Plus size={28} strokeWidth={3} />
+        </button>
+      )}
+
+      {isReadOnly && (
+        <div className="flex items-center justify-center text-xs font-semibold text-slate-500 bg-slate-100 px-4 py-3 rounded-2xl mt-4">
+          <Lock size={14} className="mr-2" />
+          Read-only mode • Viewing past year data
         </div>
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500 font-medium">
-              <tr>
-                <th className="px-6 py-4">Description</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Category</th>
-                <th className="px-6 py-4 text-right">Amount</th>
-                {!isReadOnly && <th className="px-6 py-4 text-center">Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {expenses.length === 0 ? (
-                <tr>
-                  <td colSpan={isReadOnly ? 4 : 5} className="px-6 py-12 text-center text-slate-400 italic">
-                    No expenses recorded yet.
-                  </td>
-                </tr>
-              ) : (
-                expenses.map((expense) => (
-                  <tr key={expense.id} className={`transition-colors ${editingId === expense.id ? 'bg-blue-50' : 'hover:bg-red-50/30'}`}>
-                    <td className="px-6 py-4 font-medium text-slate-800">{expense.description}</td>
-                    <td className="px-6 py-4 text-slate-600">{new Date(expense.date).toLocaleDateString()}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded-md">
-                        {expense.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-red-500">-৳{expense.amount.toFixed(2)}</td>
-                    {!isReadOnly && (
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={() => handleEditClick(expense)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
-                            title="Edit Entry"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => onDelete(expense.id)}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                            title="Delete Entry"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

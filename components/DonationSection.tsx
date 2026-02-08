@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Donation } from '../types';
-import { Plus, Trash2, Calendar, DollarSign, User as UserIcon, Edit2, X, Banknote, CheckCircle2, Lock } from 'lucide-react';
+import { Plus, Trash2, Calendar, User as UserIcon, Edit2, X, Banknote, CheckCircle2, Lock, AlertCircle } from 'lucide-react';
+import { BottomSheet } from './BottomSheet';
 
 interface DonationSectionProps {
   donations: Donation[];
@@ -20,6 +21,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   // Pay Due Modal State
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -34,6 +36,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
       date: new Date().toISOString().split('T')[0]
     });
     setEditingId(null);
+    setIsFormOpen(false);
   };
 
   const handleEditClick = (donation: Donation) => {
@@ -45,13 +48,13 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
       date: donation.date
     });
     setEditingId(donation.id);
-    if (window.innerWidth < 1024) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    setIsFormOpen(true);
   };
 
-  const handleCancelEdit = () => {
+  const handleOpenForm = () => {
+    if (isReadOnly) return;
     resetForm();
+    setIsFormOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,45 +124,43 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
   const selectedDue = selectedDonation ? selectedDonation.pledgedAmount - selectedDonation.paidAmount : 0;
 
   return (
-    <div className={`grid grid-cols-1 ${!isReadOnly ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6 relative`}>
+    <div className="space-y-3 relative pb-6">
       {/* Pay Due Modal */}
       {payModalOpen && selectedDonation && !isReadOnly && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-emerald-500 transform transition-all scale-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-emerald-500 transform transition-all scale-100">
              <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                  <div className="bg-emerald-100 p-2 rounded-full mr-2 text-emerald-600">
-                    <Banknote size={20} />
-                  </div>
+                  <Banknote className="mr-2 text-emerald-600" size={22} />
                   Record Payment
                 </h3>
-                <button onClick={closePayModal} className="text-slate-400 hover:text-slate-600">
+                <button onClick={closePayModal} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
                   <X size={20} />
                 </button>
              </div>
              
-             <div className="bg-slate-50 rounded-lg p-3 mb-4 space-y-2 border border-slate-100">
+             <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl p-4 mb-4 space-y-2 border border-emerald-200">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Donor:</span>
-                  <span className="font-semibold text-slate-700">{selectedDonation.donorName}</span>
+                  <span className="text-slate-600">Donor:</span>
+                  <span className="font-bold text-slate-800">{selectedDonation.donorName}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Total Pledged:</span>
-                  <span className="text-slate-700">৳{selectedDonation.pledgedAmount.toFixed(2)}</span>
+                  <span className="text-slate-600">Total Pledged:</span>
+                  <span className="font-semibold text-slate-800">৳{selectedDonation.pledgedAmount}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Already Paid:</span>
-                  <span className="text-emerald-600 font-medium">৳{selectedDonation.paidAmount.toFixed(2)}</span>
+                  <span className="text-slate-600">Already Paid:</span>
+                  <span className="font-semibold text-emerald-600">৳{selectedDonation.paidAmount}</span>
                 </div>
-                <div className="border-t border-slate-200 pt-2 flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-700">Remaining Due:</span>
-                  <span className="text-red-600 font-bold">৳{selectedDue.toFixed(2)}</span>
+                <div className="border-t border-emerald-300 pt-2 mt-2 flex justify-between items-center">
+                  <span className="text-slate-700 font-medium">Amount Due:</span>
+                  <span className="text-xl font-bold text-red-600">৳{selectedDue.toFixed(2)}</span>
                 </div>
              </div>
 
              <form onSubmit={handlePaySubmit}>
                <div className="relative mb-2">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 font-bold text-lg">৳</span>
                   <input
                     type="number"
                     min="0"
@@ -169,18 +170,25 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
                     autoFocus
                     value={payAmount}
                     onChange={e => setPayAmount(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 text-lg font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    className="w-full pl-11 pr-4 py-4 text-lg font-semibold border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                     placeholder="Enter amount"
                   />
                </div>
                
-               <div className="flex justify-end mb-4">
-                 <button 
+               <div className="flex justify-end mb-4 space-x-2">
+                 <button
                    type="button"
-                   onClick={() => setPayAmount(selectedDue.toString())}
-                   className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center"
+                   onClick={() => setPayAmount(selectedDue.toFixed(2))}
+                   className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full font-medium hover:bg-emerald-200 transition-colors"
                  >
-                   <CheckCircle2 size={12} className="mr-1" /> Pay Full Due (৳{selectedDue.toFixed(2)})
+                   Full Amount
+                 </button>
+                 <button
+                   type="button"
+                   onClick={() => setPayAmount((selectedDue / 2).toFixed(2))}
+                   className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 transition-colors"
+                 >
+                   Half
                  </button>
                </div>
 
@@ -188,13 +196,13 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
                  <button
                    type="button"
                    onClick={closePayModal}
-                   className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-medium rounded-lg hover:bg-slate-200 transition-colors"
+                   className="flex-1 py-3 bg-slate-100 text-slate-700 font-medium rounded-2xl hover:bg-slate-200 transition-colors active:scale-95"
                  >
                    Cancel
                  </button>
                  <button
                    type="submit"
-                   className="flex-1 py-2.5 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-colors"
+                   className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-medium rounded-2xl hover:shadow-lg hover:shadow-emerald-500/40 transition-all active:scale-95"
                  >
                    Confirm Payment
                  </button>
@@ -204,192 +212,212 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
         </div>
       )}
 
-      {/* Form Section - Hidden if Read Only */}
-      {!isReadOnly && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 h-fit relative">
-          <h3 className="text-xl font-serif font-bold text-slate-800 mb-6 flex items-center justify-between">
-            <div className="flex items-center">
-              <span className={`w-8 h-8 rounded-full ${editingId ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'} flex items-center justify-center mr-3`}>
-                {editingId ? <Edit2 size={18} /> : <Plus size={18} />}
-              </span>
-              {editingId ? 'Edit Donation' : 'New Donation'}
+      {/* Form Bottom Sheet */}
+      <BottomSheet
+        isOpen={isFormOpen}
+        onClose={resetForm}
+        title={editingId ? 'Edit Donation' : 'New Donation'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4 pb-6">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Donor Name</label>
+            <div className="relative">
+              <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                required
+                value={formData.donorName}
+                onChange={e => setFormData({ ...formData, donorName: e.target.value })}
+                className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-base"
+                placeholder="Brother Ali"
+              />
             </div>
-            {editingId && (
-              <button 
-                onClick={handleCancelEdit}
-                className="text-xs flex items-center text-slate-500 hover:text-red-500 bg-slate-100 hover:bg-red-50 px-2 py-1 rounded transition-colors"
-              >
-                <X size={14} className="mr-1" /> Cancel
-              </button>
-            )}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Donor Name</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Pledged Amount</label>
               <div className="relative">
-                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 font-bold">৳</span>
                 <input
-                  type="text"
+                  type="number"
+                  min="0"
+                  step="0.01"
                   required
-                  value={formData.donorName}
-                  onChange={e => setFormData({ ...formData, donorName: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                  placeholder="Brother Ali"
+                  value={formData.pledgedAmount}
+                  onChange={e => setFormData({ ...formData, pledgedAmount: e.target.value })}
+                  className="w-full pl-10 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-base"
+                  placeholder="0.00"
                 />
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Pledged</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={formData.pledgedAmount}
-                    onChange={e => setFormData({ ...formData, pledgedAmount: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Paid</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={formData.paidAmount}
-                    onChange={e => setFormData({ ...formData, paidAmount: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-            </div>
-
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Paid Amount</label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 font-bold">৳</span>
                 <input
-                  type="date"
+                  type="number"
+                  min="0"
+                  step="0.01"
                   required
-                  value={formData.date}
-                  onChange={e => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                  value={formData.paidAmount}
+                  onChange={e => setFormData({ ...formData, paidAmount: e.target.value })}
+                  className="w-full pl-10 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-base"
+                  placeholder="0.00"
                 />
               </div>
             </div>
+          </div>
 
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Date</label>
+            <div className="relative">
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="date"
+                required
+                value={formData.date}
+                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-base"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={`w-full text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${
+              editingId 
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-blue-500/40' 
+                : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:shadow-emerald-500/40'
+            }`}
+          >
+            {isSubmitting ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Donation' : 'Add Donation')}
+          </button>
+        </form>
+      </BottomSheet>
+
+      {/* Donation Cards - Mobile Native */}
+      {donations.length === 0 ? (
+        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-12 text-center">
+          <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={36} className="text-emerald-600" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">No donations yet</h3>
+          <p className="text-sm text-slate-500 mb-6">Start tracking donations by adding your first entry</p>
+          {!isReadOnly && (
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full text-white font-medium py-2.5 rounded-lg shadow-sm transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${
-                editingId 
-                  ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' 
-                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
-              }`}
+              onClick={handleOpenForm}
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg shadow-emerald-500/40 hover:shadow-xl transition-all active:scale-95"
             >
-              {isSubmitting ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Donation' : 'Add Donation')}
+              Add First Donation
             </button>
-          </form>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {donations.map((donation) => {
+            const due = donation.pledgedAmount - donation.paidAmount;
+            const paidPercentage = (donation.paidAmount / donation.pledgedAmount) * 100;
+            
+            return (
+              <div
+                key={donation.id}
+                className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5 hover:shadow-xl transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">{donation.donorName}</h3>
+                    <p className="text-xs text-slate-500 flex items-center">
+                      <Calendar size={12} className="mr-1" />
+                      {new Date(donation.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+
+                  {!isReadOnly && (
+                    <div className="flex space-x-1">
+                      {due > 0.01 && (
+                        <button
+                          onClick={() => openPayModal(donation.id)}
+                          className="p-2.5 bg-emerald-100 text-emerald-600 hover:bg-emerald-200 rounded-2xl transition-all active:scale-95"
+                          title="Pay Due"
+                        >
+                          <Banknote size={18} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleEditClick(donation)}
+                        className="p-2.5 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-2xl transition-all active:scale-95"
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => onDelete(donation.id)}
+                        className="p-2.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-2xl transition-all active:scale-95"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div className="flex justify-between text-xs text-slate-600 mb-1.5">
+                    <span>Payment Progress</span>
+                    <span className="font-bold">{paidPercentage.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(paidPercentage, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Amounts Grid */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-50 rounded-2xl p-3 text-center">
+                    <p className="text-xs text-slate-500 mb-1">Pledged</p>
+                    <p className="text-sm font-bold text-slate-800">৳{donation.pledgedAmount}</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded-2xl p-3 text-center">
+                    <p className="text-xs text-emerald-600 mb-1">Paid</p>
+                    <p className="text-sm font-bold text-emerald-700">৳{donation.paidAmount}</p>
+                  </div>
+                  <div className={`rounded-2xl p-3 text-center ${due > 0.01 ? 'bg-red-50' : 'bg-green-50'}`}>
+                    <p className={`text-xs mb-1 ${due > 0.01 ? 'text-red-600' : 'text-green-600'}`}>
+                      {due > 0.01 ? 'Due' : 'Paid'}
+                    </p>
+                    <p className={`text-sm font-bold ${due > 0.01 ? 'text-red-700' : 'text-green-700'}`}>
+                      {due > 0.01 ? `৳${due.toFixed(2)}` : <CheckCircle2 size={16} className="inline" />}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* List Section */}
-      <div className={`${!isReadOnly ? 'lg:col-span-2' : ''} bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col`}>
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <h3 className="text-xl font-serif font-bold text-slate-800">Recent Donations</h3>
-          {isReadOnly && (
-            <span className="text-xs font-semibold text-slate-500 bg-slate-200 px-2 py-1 rounded flex items-center">
-              <Lock size={12} className="mr-1" /> Read Only
-            </span>
-          )}
+      {/* Floating Action Button */}
+      {!isReadOnly && donations.length > 0 && (
+        <button
+          onClick={handleOpenForm}
+          className="fixed bottom-24 right-6 z-40 w-16 h-16 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-full shadow-2xl shadow-emerald-500/50 flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+        >
+          <Plus size={28} strokeWidth={3} />
+        </button>
+      )}
+
+      {isReadOnly && (
+        <div className="flex items-center justify-center text-xs font-semibold text-slate-500 bg-slate-100 px-4 py-3 rounded-2xl mt-4">
+          <Lock size={14} className="mr-2" />
+          Read-only mode • Viewing past year data
         </div>
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500 font-medium">
-              <tr>
-                <th className="px-6 py-4">Donor</th>
-                <th className="px-6 py-4 text-right">Pledged</th>
-                <th className="px-6 py-4 text-right">Paid</th>
-                <th className="px-6 py-4 text-right">Due</th>
-                {!isReadOnly && <th className="px-6 py-4 text-center">Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {donations.length === 0 ? (
-                <tr>
-                  <td colSpan={isReadOnly ? 4 : 5} className="px-6 py-12 text-center text-slate-400 italic">
-                    No donations recorded yet.
-                  </td>
-                </tr>
-              ) : (
-                donations.map((donation) => {
-                  const due = donation.pledgedAmount - donation.paidAmount;
-                  return (
-                    <tr key={donation.id} className={`transition-colors ${editingId === donation.id ? 'bg-blue-50' : 'hover:bg-emerald-50/30'}`}>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-slate-800">{donation.donorName}</div>
-                        <div className="text-xs text-slate-500">{new Date(donation.date).toLocaleDateString()}</div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-slate-600">৳{donation.pledgedAmount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right font-medium text-emerald-600">৳{donation.paidAmount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right">
-                         {due > 0.01 ? (
-                           <span className="bg-red-100 text-red-600 py-1 px-2 rounded text-xs font-bold">
-                             ৳{due.toFixed(2)}
-                           </span>
-                         ) : (
-                           <span className="text-slate-400 text-xs flex items-center justify-end">
-                             <CheckCircle2 size={14} className="mr-1 text-emerald-500" /> Paid
-                           </span>
-                         )}
-                      </td>
-                      {!isReadOnly && (
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex items-center justify-center space-x-1">
-                            {due > 0.01 && (
-                               <button
-                                 onClick={() => openPayModal(donation.id)}
-                                 className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-full transition-all"
-                                 title="Pay Due"
-                               >
-                                 <Banknote size={16} />
-                               </button>
-                            )}
-                            <button
-                              onClick={() => handleEditClick(donation)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
-                              title="Edit Entry"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => onDelete(donation.id)}
-                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                              title="Delete Entry"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

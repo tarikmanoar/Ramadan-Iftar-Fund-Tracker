@@ -32,60 +32,70 @@ export const Dashboard: React.FC<DashboardProps> = ({ summary, expenses }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Cards Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Pledged */}
-        <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-6 flex items-center space-x-4">
-          <div className="p-3 bg-emerald-100 rounded-full text-emerald-600">
-            <PiggyBank size={24} />
-          </div>
+    <div className="space-y-4 pb-6">
+      {/* Hero Balance Card - Glassmorphic */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-3xl shadow-2xl shadow-emerald-500/40 p-6 mb-4">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE4YzAtOS45NC04LjA2LTE4LTE4LTE4IDE5Ljk0IDAgMzYgMTYuMDYgMzYgMzYgMC05Ljk0LTguMDYtMTgtMTgtMTh6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
+        <div className="relative flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500">Total Pledged</p>
-            <h3 className="text-2xl font-bold text-slate-800">{formatCurrency(summary.totalPledged)}</h3>
+            <p className="text-emerald-100 text-sm font-medium mb-1">Current Balance</p>
+            <h2 className="text-4xl font-bold text-white mb-2">{formatCurrency(summary.currentBalance)}</h2>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></div>
+              <span className="text-emerald-100 text-xs">All transactions synced</span>
+            </div>
           </div>
-        </div>
-
-        {/* Collected */}
-        <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-6 flex items-center space-x-4">
-          <div className="p-3 bg-gold-500/10 rounded-full text-gold-600">
-            <Wallet size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Total Collected</p>
-            <h3 className="text-2xl font-bold text-slate-800">{formatCurrency(summary.totalCollected)}</h3>
-          </div>
-        </div>
-
-        {/* Expenses */}
-        <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-6 flex items-center space-x-4">
-          <div className="p-3 bg-red-50 rounded-full text-red-500">
-            <Receipt size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Total Expenses</p>
-            <h3 className="text-2xl font-bold text-slate-800">{formatCurrency(summary.totalExpenses)}</h3>
-          </div>
-        </div>
-
-        {/* Balance */}
-        <div className="bg-emerald-600 rounded-xl shadow-lg shadow-emerald-200 p-6 flex items-center space-x-4 text-white">
-          <div className="p-3 bg-white/20 rounded-full text-white">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-emerald-100">Current Balance</p>
-            <h3 className="text-2xl font-bold">{formatCurrency(summary.currentBalance)}</h3>
+          <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl border border-white/30 shadow-lg">
+            <TrendingUp size={32} className="text-white" />
           </div>
         </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 lg:col-span-2">
-           <h3 className="text-lg font-semibold text-slate-800 mb-4 font-serif">Financial Overview</h3>
-           <div className="h-64">
+      {/* Stats Grid - Glass Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Pledged */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-white/60 p-4">
+          <div className="flex flex-col items-center text-center">
+            <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/30 mb-2">
+              <PiggyBank size={20} className="text-white" />
+            </div>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Pledged</p>
+            <h3 className="text-lg font-bold text-slate-800 leading-tight">{formatCurrency(summary.totalPledged)}</h3>
+          </div>
+        </div>
+
+        {/* Collected */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-white/60 p-4">
+          <div className="flex flex-col items-center text-center">
+            <div className="p-3 bg-gradient-to-br from-gold-400 to-gold-500 rounded-2xl shadow-lg shadow-gold-500/30 mb-2">
+              <Wallet size={20} className="text-white" />
+            </div>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Collected</p>
+            <h3 className="text-lg font-bold text-slate-800 leading-tight">{formatCurrency(summary.totalCollected)}</h3>
+          </div>
+        </div>
+
+        {/* Expenses */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-white/60 p-4">
+          <div className="flex flex-col items-center text-center">
+            <div className="p-3 bg-gradient-to-br from-red-400 to-red-500 rounded-2xl shadow-lg shadow-red-500/30 mb-2">
+              <Receipt size={20} className="text-white" />
+            </div>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Expenses</p>
+            <h3 className="text-lg font-bold text-slate-800 leading-tight">{formatCurrency(summary.totalExpenses)}</h3>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section - Mobile Optimized */}
+      <div className="space-y-4">
+        {/* Financial Overview Chart */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5">
+           <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center">
+             <span className="w-1 h-5 bg-gradient-to-b from-emerald-500 to-emerald-600 rounded-full mr-2"></span>
+             Financial Overview
+           </h3>
+           <div className="h-56">
              <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={[
@@ -93,17 +103,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ summary, expenses }) => {
                     { name: 'Collected', amount: summary.totalCollected },
                     { name: 'Expenses', amount: summary.totalExpenses },
                   ]}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `$${value}`} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(value) => `$${value/1000}k`} />
                   <Tooltip 
-                    cursor={{fill: '#f1f5f9'}}
+                    cursor={{fill: '#f1f5f9', radius: 8}}
                     formatter={(value: number) => [`$${value}`, 'Amount']}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ 
+                      borderRadius: '16px', 
+                      border: 'none', 
+                      boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      backdropFilter: 'blur(12px)'
+                    }}
                   />
-                  <Bar dataKey="amount" fill="#10b981" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="amount" radius={[12, 12, 0, 0]}>
                     {
                       [{ name: 'Pledged' }, { name: 'Collected' }, { name: 'Expenses' }].map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={index === 2 ? '#ef4444' : (index === 1 ? '#f59e0b' : '#10b981')} />
@@ -115,40 +131,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ summary, expenses }) => {
            </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 font-serif">Expenses Breakdown</h3>
+        {/* Expense Breakdown */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5">
+          <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center">
+            <span className="w-1 h-5 bg-gradient-to-b from-red-500 to-red-600 rounded-full mr-2"></span>
+            Expenses Breakdown
+          </h3>
           {pieData.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => `$${value}`} />
-                </PieChart>
-              </ResponsiveContainer>
+            <div>
+              <div className="h-56 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => `$${value}`}
+                      contentStyle={{ 
+                        borderRadius: '16px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        backdropFilter: 'blur(12px)'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 {pieData.map((entry, index) => (
-                  <div key={index} className="flex items-center text-xs text-slate-600">
-                    <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                    {entry.name}
+                  <div key={index} className="flex items-center bg-slate-50/50 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium">
+                    <div className="w-3 h-3 rounded-full mr-2 shadow-sm" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                    <span className="truncate flex-1">{entry.name}</span>
+                    <span className="text-slate-900 font-bold ml-1">${entry.value}</span>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="h-64 flex items-center justify-center text-slate-400 text-sm italic">
-              No expenses recorded yet.
+            <div className="h-56 flex flex-col items-center justify-center text-slate-400">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                <Receipt size={28} className="text-slate-300" />
+              </div>
+              <p className="text-sm font-medium">No expenses yet</p>
+              <p className="text-xs mt-1">Start adding expenses to see breakdown</p>
             </div>
           )}
         </div>
