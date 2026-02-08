@@ -202,7 +202,7 @@ function App() {
              <select 
                value={selectedYear} 
                onChange={(e) => setActiveTab('dashboard') || setSelectedYear(parseInt(e.target.value))}
-               className="bg-slate-50 border-2 border-slate-200 text-slate-800 font-bold rounded-2xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer shadow-sm"
+               className="bg-white/80 backdrop-blur-xl border-2 border-emerald-200 text-slate-800 font-bold rounded-2xl px-5 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer shadow-lg hover:shadow-xl transition-all active:scale-95"
              >
                {availableYears.map(year => (
                  <option key={year} value={year}>{year}</option>

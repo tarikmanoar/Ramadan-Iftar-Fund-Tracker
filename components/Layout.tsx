@@ -56,7 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChang
       </header>
 
       {/* Main Content with bottom padding for nav */}
-      <main className="flex-1 relative z-10 px-4 pb-24 overflow-y-auto">
+      <main className="flex-1 relative z-10 px-4 pb-32 overflow-y-auto">
         {children}
       </main>
       

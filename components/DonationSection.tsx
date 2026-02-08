@@ -127,7 +127,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
     <div className="space-y-3 relative pb-6">
       {/* Pay Due Modal */}
       {payModalOpen && selectedDonation && !isReadOnly && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-emerald-500 transform transition-all scale-100">
              <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center">
@@ -272,13 +272,13 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Date</label>
             <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" size={18} />
               <input
                 type="date"
                 required
                 value={formData.date}
                 onChange={e => setFormData({ ...formData, date: e.target.value })}
-                className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-base"
+                className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-base [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               />
             </div>
           </div>
@@ -406,7 +406,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
       {!isReadOnly && donations.length > 0 && (
         <button
           onClick={handleOpenForm}
-          className="fixed bottom-24 right-6 z-40 w-16 h-16 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-full shadow-2xl shadow-emerald-500/50 flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+          className="fixed bottom-28 right-6 z-40 w-16 h-16 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-full shadow-2xl shadow-emerald-500/50 flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
         >
           <Plus size={28} strokeWidth={3} />
         </button>
