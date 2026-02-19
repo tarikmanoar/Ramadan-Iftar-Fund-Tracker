@@ -90,12 +90,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ summary, expenses }) => {
       {/* Charts Section - Mobile Optimized */}
       <div className="space-y-4">
         {/* Financial Overview Chart */}
-        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5">
+        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5 overflow-hidden">
            <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center">
              <span className="w-1 h-5 bg-gradient-to-b from-emerald-500 to-emerald-600 rounded-full mr-2"></span>
              Financial Overview
            </h3>
-           <div className="h-56">
+           <div className="h-56 w-full min-w-0">
              <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={[
@@ -132,14 +132,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ summary, expenses }) => {
         </div>
 
         {/* Expense Breakdown */}
-        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5">
+        <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5 overflow-hidden">
           <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center">
             <span className="w-1 h-5 bg-gradient-to-b from-red-500 to-red-600 rounded-full mr-2"></span>
             Expenses Breakdown
           </h3>
           {pieData.length > 0 ? (
             <div>
-              <div className="h-56 flex items-center justify-center">
+              <div className="h-56 w-full min-w-0 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
