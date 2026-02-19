@@ -46,10 +46,10 @@ export const dbService = {
     // Convert snake_case from DB to camelCase for frontend
     return data.map(d => ({
       id: d.id,
-      userId: (d as any).user_id || d.userId,
-      donorName: (d as any).donor_name || d.donorName,
-      pledgedAmount: (d as any).pledged_amount || d.pledgedAmount,
-      paidAmount: (d as any).paid_amount || d.paidAmount,
+      userId: (d as any).user_id ?? d.userId,
+      donorName: (d as any).donor_name ?? d.donorName,
+      pledgedAmount: (d as any).pledged_amount ?? d.pledgedAmount ?? 0,
+      paidAmount: (d as any).paid_amount ?? d.paidAmount ?? 0,
       date: d.date,
       year: d.year,
       notes: d.notes,

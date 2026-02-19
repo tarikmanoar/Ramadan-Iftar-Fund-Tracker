@@ -43,8 +43,8 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
     if (isReadOnly) return;
     setFormData({
       donorName: donation.donorName,
-      pledgedAmount: donation.pledgedAmount.toString(),
-      paidAmount: donation.paidAmount.toString(),
+      pledgedAmount: (donation.pledgedAmount ?? 0).toString(),
+      paidAmount: (donation.paidAmount ?? 0).toString(),
       date: donation.date
     });
     setEditingId(donation.id);
@@ -317,8 +317,10 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
       ) : (
         <div className="space-y-3">
           {donations.map((donation) => {
-            const due = donation.pledgedAmount - donation.paidAmount;
-            const paidPercentage = (donation.paidAmount / donation.pledgedAmount) * 100;
+            const paid = donation.paidAmount ?? 0;
+            const pledged = donation.pledgedAmount ?? 0;
+            const due = pledged - paid;
+            const paidPercentage = pledged > 0 ? (paid / pledged) * 100 : 0;
             
             return (
               <div
@@ -381,11 +383,11 @@ export const DonationSection: React.FC<DonationSectionProps> = ({ donations, onA
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-slate-50 rounded-2xl p-3 text-center">
                     <p className="text-xs text-slate-500 mb-1">Pledged</p>
-                    <p className="text-sm font-bold text-slate-800">৳{donation.pledgedAmount}</p>
+                    <p className="text-sm font-bold text-slate-800">৳{pledged}</p>
                   </div>
                   <div className="bg-emerald-50 rounded-2xl p-3 text-center">
                     <p className="text-xs text-emerald-600 mb-1">Paid</p>
-                    <p className="text-sm font-bold text-emerald-700">৳{donation.paidAmount}</p>
+                    <p className="text-sm font-bold text-emerald-700">৳{paid}</p>
                   </div>
                   <div className={`rounded-2xl p-3 text-center ${due > 0.01 ? 'bg-red-50' : 'bg-green-50'}`}>
                     <p className={`text-xs mb-1 ${due > 0.01 ? 'text-red-600' : 'text-green-600'}`}>
