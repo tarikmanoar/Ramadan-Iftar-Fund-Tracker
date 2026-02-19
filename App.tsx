@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './services/authContext';
 import { dbService } from './services/dbService';
-import { Donation, Expense, DashboardSummary } from './types';
+import { Donation, Expense, DashboardSummary, RamadanYear } from './types';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { DonationSection } from './components/DonationSection';
@@ -17,7 +17,12 @@ function App() {
   // Year Management
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [availableYears, setAvailableYears] = useState<number[]>([currentYear - 2, currentYear - 1, currentYear, currentYear + 1]);
+  const [availableYears, setAvailableYears] = useState<RamadanYear[]>([
+    { year: currentYear - 2, startDate: '' },
+    { year: currentYear - 1, startDate: '' },
+    { year: currentYear, startDate: '' },
+    { year: currentYear + 1, startDate: '' },
+  ]);
   const [isYearManagerOpen, setIsYearManagerOpen] = useState(false);
   const [yearsLoading, setYearsLoading] = useState(true);
   
@@ -36,10 +41,13 @@ function App() {
         // Check if localStorage has years that should be migrated
         const localStorageYears = localStorage.getItem('ramadan_years');
         if (localStorageYears && dbYears.length === 4) {
-          // Migrate localStorage years to database
-          const parsedLocalYears = JSON.parse(localStorageYears);
+          // Migrate localStorage years to database (normalize plain numbers to RamadanYear)
+          const parsedLocalYears: any[] = JSON.parse(localStorageYears);
           if (Array.isArray(parsedLocalYears) && parsedLocalYears.length > 0) {
-            const migratedYears = await dbService.updateAvailableYears(parsedLocalYears);
+            const normalized: RamadanYear[] = parsedLocalYears.map((y: any) =>
+              typeof y === 'number' ? { year: y, startDate: '' } : y
+            );
+            const migratedYears = await dbService.updateAvailableYears(normalized);
             setAvailableYears(migratedYears);
             // Clear localStorage after successful migration
             localStorage.removeItem('ramadan_years');
@@ -52,7 +60,12 @@ function App() {
       } catch (error) {
         console.error('Failed to load available years:', error);
         // Fallback to defaults
-        setAvailableYears([currentYear - 2, currentYear - 1, currentYear, currentYear + 1]);
+        setAvailableYears([
+          { year: currentYear - 2, startDate: '' },
+          { year: currentYear - 1, startDate: '' },
+          { year: currentYear, startDate: '' },
+          { year: currentYear + 1, startDate: '' },
+        ]);
       } finally {
         setYearsLoading(false);
       }
@@ -62,7 +75,7 @@ function App() {
   }, [user, currentYear]);
   
   // Save years to database whenever they change
-  const handleYearsUpdate = async (years: number[]) => {
+  const handleYearsUpdate = async (years: RamadanYear[]) => {
     try {
       const updatedYears = await dbService.updateAvailableYears(years);
       setAvailableYears(updatedYears);
@@ -73,6 +86,9 @@ function App() {
   
   // Read-only mode for previous years
   const isReadOnly = selectedYear !== currentYear;
+  
+  // Ramadan start date for selected year (for day-based filtering)
+  const selectedYearStartDate = availableYears.find(y => y.year === selectedYear)?.startDate ?? '';
 
   // Data State
   const [donations, setDonations] = useState<Donation[]>([]);
@@ -239,7 +255,8 @@ function App() {
     <Layout currentTab={activeTab} onTabChange={setActiveTab}>
       <div className="space-y-4 pt-2">
         
-        {/* Year Selector - Mobile Native Style */}
+        {/* Year Selector - only visible on Dashboard */}
+        {activeTab === 'dashboard' && (
         <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-4">
            <div className="flex items-center justify-between">
              <div className="flex items-center space-x-3">
@@ -258,7 +275,7 @@ function App() {
                  onChange={(e) => setActiveTab('dashboard') || setSelectedYear(parseInt(e.target.value))}
                  className="bg-white/80 backdrop-blur-xl border-2 border-emerald-200 text-slate-800 font-bold rounded-2xl px-5 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer shadow-lg hover:shadow-xl transition-all active:scale-95"
                >
-                 {availableYears.sort((a, b) => b - a).map(year => (
+                 {[...availableYears].sort((a, b) => b.year - a.year).map(({ year }) => (
                    <option key={year} value={year}>{year}</option>
                  ))}
                </select>
@@ -280,6 +297,7 @@ function App() {
              </div>
            )}
         </div>
+        )}
 
         {/* Content Area */}
         {isDataLoading ? (
@@ -312,6 +330,7 @@ function App() {
                 selectedYear={selectedYear}
                 onCategoryChange={handleCategoryChange}
                 isReadOnly={isReadOnly}
+                ramadanStartDate={selectedYearStartDate}
               />
             )}
           </div>

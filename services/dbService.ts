@@ -1,4 +1,4 @@
-import { Donation, Expense } from '../types';
+import { Donation, Expense, RamadanYear } from '../types';
 
 // API Base URL - set via environment variable or default to localhost
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
@@ -122,6 +122,8 @@ export const dbService = {
       category: e.category,
       date: e.date,
       year: e.year,
+      quantity: (e as any).quantity ?? e.quantity ?? undefined,
+      unit: (e as any).unit ?? e.unit ?? undefined,
     }));
   },
 
@@ -132,6 +134,8 @@ export const dbService = {
       category: expense.category,
       date: expense.date,
       year: expense.year,
+      quantity: expense.quantity ?? null,
+      unit: expense.unit ?? null,
     };
 
     const result = await apiCall<any>('/api/expenses', {
@@ -147,6 +151,8 @@ export const dbService = {
       category: result.category,
       date: result.date,
       year: result.year,
+      quantity: result.quantity ?? undefined,
+      unit: result.unit ?? undefined,
     };
   },
 
@@ -158,6 +164,8 @@ export const dbService = {
       category: expense.category,
       date: expense.date,
       year: expense.year,
+      quantity: expense.quantity ?? null,
+      unit: expense.unit ?? null,
     };
 
     await apiCall('/api/expenses', {
@@ -202,13 +210,13 @@ export const dbService = {
   },
 
   // User Preferences
-  getAvailableYears: async (): Promise<number[]> => {
-    const response = await apiCall<{ availableYears: number[] }>('/api/user/preferences');
+  getAvailableYears: async (): Promise<RamadanYear[]> => {
+    const response = await apiCall<{ availableYears: RamadanYear[] }>('/api/user/preferences');
     return response.availableYears;
   },
 
-  updateAvailableYears: async (years: number[]): Promise<number[]> => {
-    const response = await apiCall<{ availableYears: number[] }>('/api/user/preferences', {
+  updateAvailableYears: async (years: RamadanYear[]): Promise<RamadanYear[]> => {
+    const response = await apiCall<{ availableYears: RamadanYear[] }>('/api/user/preferences', {
       method: 'PUT',
       body: JSON.stringify({ availableYears: years }),
     });

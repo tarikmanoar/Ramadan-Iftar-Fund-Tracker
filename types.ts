@@ -24,6 +24,14 @@ export interface Expense {
   category: string;
   date: string;
   year: number;
+  quantity?: number;
+  unit?: string;
+}
+
+// Ramadan year with configurable start date for day-based filtering
+export interface RamadanYear {
+  year: number;
+  startDate: string; // ISO date string e.g. "2026-02-19", empty string if not set
 }
 
 export interface DashboardSummary {

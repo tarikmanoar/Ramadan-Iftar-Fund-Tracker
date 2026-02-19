@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Expense } from '../types';
 import { dbService } from '../services/dbService';
-import { Plus, Trash2, Calendar, Tag, FileText, Edit2, X, Settings, Check, Edit3, Lock, Receipt, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Calendar, Tag, FileText, Edit2, X, Settings, Check, Edit3, Lock, Receipt, AlertCircle, Package2, Hash } from 'lucide-react';
 import { BottomSheet } from './BottomSheet';
+
+const UNIT_OPTIONS = ['kg', 'g', 'liter', 'ml', 'meter', 'cm', 'piece', 'dozen', 'box', 'bag', 'packet', 'set'];
+
+const getRamadanDay = (expenseDate: string, startDate: string): number | null => {
+  if (!startDate) return null;
+  const start = new Date(startDate);
+  const expense = new Date(expenseDate);
+  const diff = Math.floor((expense.getTime() - start.getTime()) / 86400000) + 1;
+  return diff >= 1 && diff <= 30 ? diff : null;
+};
 
 interface ExpenseSectionProps {
   expenses: Expense[];
@@ -12,15 +22,19 @@ interface ExpenseSectionProps {
   selectedYear: number;
   onCategoryChange?: () => void;
   isReadOnly?: boolean;
+  ramadanStartDate?: string;
 }
 
-export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd, onUpdate, onDelete, selectedYear, onCategoryChange, isReadOnly = false }) => {
+export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd, onUpdate, onDelete, selectedYear, onCategoryChange, isReadOnly = false, ramadanStartDate = '' }) => {
   const [categories, setCategories] = useState<string[]>([]);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
     category: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    quantity: '',
+    unit: '',
   });
   
   // State for adding a new category
@@ -53,7 +67,9 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
       description: '',
       amount: '',
       category: categories[0] || 'Food',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      quantity: '',
+      unit: '',
     });
     setEditingId(null);
     setIsAddingCategory(false);
@@ -67,7 +83,9 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
       description: expense.description,
       amount: expense.amount.toString(),
       category: expense.category,
-      date: expense.date
+      date: expense.date,
+      quantity: expense.quantity?.toString() ?? '',
+      unit: expense.unit ?? '',
     });
     setEditingId(expense.id);
     setIsAddingCategory(false);
@@ -135,7 +153,9 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
           amount: parseFloat(formData.amount) || 0,
           category: finalCategory,
           date: formData.date,
-          year: selectedYear
+          year: selectedYear,
+          quantity: formData.quantity ? parseFloat(formData.quantity) : undefined,
+          unit: formData.unit || undefined,
         });
       }
     } else {
@@ -144,7 +164,9 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
         amount: parseFloat(formData.amount) || 0,
         category: finalCategory,
         date: formData.date,
-        year: selectedYear
+        year: selectedYear,
+        quantity: formData.quantity ? parseFloat(formData.quantity) : undefined,
+        unit: formData.unit || undefined,
       });
     }
 
@@ -154,6 +176,43 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
 
   return (
     <div className="space-y-3 relative pb-6">
+
+      {/* Ramadan Day Filter */}
+      <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-4">
+        <p className="text-xs font-semibold text-slate-500 mb-3">Filter by Ramadan Day</p>
+        {!ramadanStartDate ? (
+          <p className="text-xs text-amber-600 flex items-center gap-1">
+            <AlertCircle size={13} />
+            Set Ramadan start date in Year Settings ⚙️ to enable day filtering
+          </p>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => setSelectedDay(null)}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all active:scale-95 ${
+                selectedDay === null
+                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'
+              }`}
+            >
+              All
+            </button>
+            {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(selectedDay === day ? null : day)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all active:scale-95 ${
+                  selectedDay === day
+                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'
+                }`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       
       {/* Category Manager Modal */}
       {isManagingCategories && !isReadOnly && (
@@ -331,6 +390,41 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
              </div>
           </div>
 
+          {/* Quantity + Unit (optional) */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-bold text-slate-700 mb-2">Quantity <span className="font-normal text-slate-400">(optional)</span></label>
+              <div className="relative">
+                <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={formData.quantity}
+                  onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+                  className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-base"
+                  placeholder="5"
+                />
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-bold text-slate-700 mb-2">Unit <span className="font-normal text-slate-400">(optional)</span></label>
+              <div className="relative">
+                <Package2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <select
+                  value={formData.unit}
+                  onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                  className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all bg-white/90 appearance-none text-base shadow-sm"
+                >
+                  <option value="">—</option>
+                  {UNIT_OPTIONS.map(u => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Date</label>
             <div className="relative">
@@ -360,13 +454,22 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
       </BottomSheet>
 
       {/* Expense Cards - Mobile Native */}
-      {expenses.length === 0 ? (
+      {(() => {
+        const filteredExpenses = selectedDay !== null && ramadanStartDate
+          ? expenses.filter(e => getRamadanDay(e.date, ramadanStartDate) === selectedDay)
+          : expenses;
+        
+        return filteredExpenses.length === 0 ? (
         <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-12 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle size={36} className="text-red-600" />
           </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-2">No expenses yet</h3>
-          <p className="text-sm text-slate-500 mb-6">Start tracking expenses by adding your first entry</p>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">
+            {selectedDay !== null ? `No expenses on Day ${selectedDay}` : 'No expenses yet'}
+          </h3>
+          <p className="text-sm text-slate-500 mb-6">
+            {selectedDay !== null ? 'Try selecting a different day or "All"' : 'Start tracking expenses by adding your first entry'}
+          </p>
           {!isReadOnly && (
             <button
               onClick={handleOpenForm}
@@ -376,10 +479,11 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
             </button>
           )}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {expenses.map((expense) => {
-            return (
+        ) : (
+          <div className="space-y-3">
+            {filteredExpenses.map((expense) => {
+              const ramadanDay = ramadanStartDate ? getRamadanDay(expense.date, ramadanStartDate) : null;
+              return (
               <div
                 key={expense.id}
                 className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg border border-white/60 p-5 hover:shadow-xl transition-all"
@@ -393,10 +497,23 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
                       </span>
                     </div>
                     <h3 className="text-lg font-bold text-slate-800 mb-1">{expense.description}</h3>
-                    <p className="text-xs text-slate-500 flex items-center">
-                      <Calendar size={12} className="mr-1" />
-                      {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs text-slate-500 flex items-center">
+                        <Calendar size={12} className="mr-1" />
+                        {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                      {ramadanDay !== null && (
+                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          Day {ramadanDay}
+                        </span>
+                      )}
+                      {expense.quantity != null && (
+                        <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Package2 size={11} />
+                          {expense.quantity}{expense.unit ? ` ${expense.unit}` : ''}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {!isReadOnly && (
@@ -430,10 +547,11 @@ export const ExpenseSection: React.FC<ExpenseSectionProps> = ({ expenses, onAdd,
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Floating Action Button */}
       {!isReadOnly && expenses.length > 0 && (

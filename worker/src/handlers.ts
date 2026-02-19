@@ -96,7 +96,7 @@ export async function handleExpenses(request: Request, env: Env, user: User): Pr
     const id = crypto.randomUUID();
 
     await env.DB.prepare(
-      'INSERT INTO expenses (id, user_id, description, amount, category, date, year) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO expenses (id, user_id, description, amount, category, date, year, quantity, unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       id,
       user.id,
@@ -104,7 +104,9 @@ export async function handleExpenses(request: Request, env: Env, user: User): Pr
       body.amount,
       body.category,
       body.date,
-      body.year
+      body.year,
+      body.quantity ?? null,
+      body.unit ?? null
     ).run();
 
     return jsonResponse({ id, ...body }, 201);
@@ -114,13 +116,15 @@ export async function handleExpenses(request: Request, env: Env, user: User): Pr
     const body = await request.json<any>();
 
     await env.DB.prepare(
-      'UPDATE expenses SET description = ?, amount = ?, category = ?, date = ?, year = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?'
+      'UPDATE expenses SET description = ?, amount = ?, category = ?, date = ?, year = ?, quantity = ?, unit = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?'
     ).bind(
       body.description,
       body.amount,
       body.category,
       body.date,
       body.year,
+      body.quantity ?? null,
+      body.unit ?? null,
       body.id,
       user.id
     ).run();
@@ -223,16 +227,30 @@ export async function handleUserPreferences(request: Request, env: Env, user: Us
 
     if (storedYears) {
       try {
-        availableYears = JSON.parse(storedYears);
+        const parsed = JSON.parse(storedYears);
+        // Normalize old number[] format to RamadanYear[]
+        availableYears = parsed.map((y: any) =>
+          typeof y === 'number' ? { year: y, startDate: '' } : y
+        );
       } catch (e) {
         // Invalid JSON, return defaults
         const currentYear = new Date().getFullYear();
-        availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+        availableYears = [
+          { year: currentYear - 2, startDate: '' },
+          { year: currentYear - 1, startDate: '' },
+          { year: currentYear, startDate: '' },
+          { year: currentYear + 1, startDate: '' },
+        ];
       }
     } else {
       // No years stored, return defaults
       const currentYear = new Date().getFullYear();
-      availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+      availableYears = [
+        { year: currentYear - 2, startDate: '' },
+        { year: currentYear - 1, startDate: '' },
+        { year: currentYear, startDate: '' },
+        { year: currentYear + 1, startDate: '' },
+      ];
     }
 
     return jsonResponse({ availableYears });
@@ -245,10 +263,14 @@ export async function handleUserPreferences(request: Request, env: Env, user: Us
       return jsonResponse({ error: 'availableYears must be an array' }, 400);
     }
 
-    // Validate years are numbers
-    const validYears = body.availableYears.every((y: any) => typeof y === 'number' && y >= 2020 && y <= 2050);
+    // Validate years are RamadanYear objects { year: number, startDate: string }
+    const validYears = body.availableYears.every((y: any) =>
+      typeof y === 'object' &&
+      typeof y.year === 'number' && y.year >= 2020 && y.year <= 2050 &&
+      typeof y.startDate === 'string'
+    );
     if (!validYears) {
-      return jsonResponse({ error: 'All years must be numbers between 2020 and 2050' }, 400);
+      return jsonResponse({ error: 'Each year must be an object with year (2020-2050) and startDate fields' }, 400);
     }
 
     const yearsJson = JSON.stringify(body.availableYears);
