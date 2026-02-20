@@ -1,6 +1,16 @@
 import { Donation, Expense, RamadanYear } from '../types';
+import { offlineQueue } from './offlineQueue';
 
-// API Base URL - set via environment variable or default to localhost
+/** Thrown when a mutating operation (update/delete) is attempted while offline. */
+export class OfflineError extends Error {
+  constructor() {
+    super('You are offline. Edits and deletions are not available without an internet connection.');
+    this.name = 'OfflineError';
+  }
+}
+
+/** True when the browser reports an active network connection. */
+const isOnline = () => navigator.onLine;
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 
 // Helper function to get session token
@@ -56,7 +66,14 @@ export const dbService = {
     }));
   },
 
-  addDonation: async (donation: Donation): Promise<Donation> => {
+  addDonation: async (donation: Donation): Promise<Donation & { _queued?: true }> => {
+    // ── Offline path: queue for later sync ────────────────────────────────────
+    if (!isOnline()) {
+      await offlineQueue.enqueue('ADD_DONATION', donation);
+      return { ...donation, _queued: true };
+    }
+
+    // ── Online path: normal API call ──────────────────────────────────────────
     // Convert camelCase to snake_case for API
     const apiData = {
       donorName: donation.donorName,
@@ -85,6 +102,7 @@ export const dbService = {
   },
 
   updateDonation: async (donation: Donation): Promise<Donation> => {
+    if (!isOnline()) throw new OfflineError();
     const apiData = {
       id: donation.id,
       donorName: donation.donorName,
@@ -104,6 +122,7 @@ export const dbService = {
   },
 
   deleteDonation: async (id: string): Promise<void> => {
+    if (!isOnline()) throw new OfflineError();
     await apiCall('/api/donations', {
       method: 'DELETE',
       body: JSON.stringify({ id }),
@@ -127,7 +146,14 @@ export const dbService = {
     }));
   },
 
-  addExpense: async (expense: Expense): Promise<Expense> => {
+  addExpense: async (expense: Expense): Promise<Expense & { _queued?: true }> => {
+    // ── Offline path: queue for later sync ────────────────────────────────────
+    if (!isOnline()) {
+      await offlineQueue.enqueue('ADD_EXPENSE', expense);
+      return { ...expense, _queued: true };
+    }
+
+    // ── Online path: normal API call ──────────────────────────────────────────
     const apiData = {
       description: expense.description,
       amount: expense.amount,
@@ -157,6 +183,7 @@ export const dbService = {
   },
 
   updateExpense: async (expense: Expense): Promise<Expense> => {
+    if (!isOnline()) throw new OfflineError();
     const apiData = {
       id: expense.id,
       description: expense.description,
@@ -177,6 +204,7 @@ export const dbService = {
   },
 
   deleteExpense: async (id: string): Promise<void> => {
+    if (!isOnline()) throw new OfflineError();
     await apiCall('/api/expenses', {
       method: 'DELETE',
       body: JSON.stringify({ id }),

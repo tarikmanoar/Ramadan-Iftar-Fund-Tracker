@@ -1,18 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './services/authContext';
-import { dbService } from './services/dbService';
+import { dbService, OfflineError } from './services/dbService';
+import { offlineQueue } from './services/offlineQueue';
 import { Donation, Expense, DashboardSummary, RamadanYear } from './types';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { DonationSection } from './components/DonationSection';
 import { ExpenseSection } from './components/ExpenseSection';
 import { YearManagerModal } from './components/YearManagerModal';
-import { Moon, LayoutDashboard, HeartHandshake, ReceiptText, CalendarRange, Lock, Settings } from 'lucide-react';
+import { Moon, LayoutDashboard, HeartHandshake, ReceiptText, CalendarRange, Lock, Settings, WifiOff } from 'lucide-react';
 import clsx from 'clsx';
 
 function App() {
   const { user, isLoading, login } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'donations' | 'expenses'>('dashboard');
+
+  // Online / Offline status
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [offlineToast, setOfflineToast] = useState('');
   
   // Year Management
   const currentYear = new Date().getFullYear();
@@ -57,15 +63,31 @@ function App() {
         } else {
           setAvailableYears(dbYears);
         }
+        // Always persist the latest years to cache
+        if (user) localStorage.setItem(`iftar_cache_${user.id}_years`, JSON.stringify(dbYears));
       } catch (error) {
-        console.error('Failed to load available years:', error);
-        // Fallback to defaults
-        setAvailableYears([
-          { year: currentYear - 2, startDate: '' },
-          { year: currentYear - 1, startDate: '' },
-          { year: currentYear, startDate: '' },
-          { year: currentYear + 1, startDate: '' },
-        ]);
+        console.warn('Failed to load available years from server, trying cache:', error);
+        // Try localStorage years cache before falling back to defaults
+        try {
+          const cachedYears = user ? localStorage.getItem(`iftar_cache_${user.id}_years`) : null;
+          if (cachedYears) {
+            setAvailableYears(JSON.parse(cachedYears));
+          } else {
+            setAvailableYears([
+              { year: currentYear - 2, startDate: '' },
+              { year: currentYear - 1, startDate: '' },
+              { year: currentYear, startDate: '' },
+              { year: currentYear + 1, startDate: '' },
+            ]);
+          }
+        } catch {
+          setAvailableYears([
+            { year: currentYear - 2, startDate: '' },
+            { year: currentYear - 1, startDate: '' },
+            { year: currentYear, startDate: '' },
+            { year: currentYear + 1, startDate: '' },
+          ]);
+        }
       } finally {
         setYearsLoading(false);
       }
@@ -97,17 +119,29 @@ function App() {
 
   // Define fetch data function
   const refreshData = useCallback(async () => {
-    if (user) {
-      try {
-        const [fetchedDonations, fetchedExpenses] = await Promise.all([
-          dbService.getDonations(user.id, selectedYear),
-          dbService.getExpenses(user.id, selectedYear)
-        ]);
-        setDonations(fetchedDonations);
-        setExpenses(fetchedExpenses);
-      } catch (error) {
-        console.error("Failed to load data", error);
-      }
+    if (!user) return;
+
+    // 1. Immediately seed state from cache so UI shows data while offline
+    const cachedDonations = (() => { try { const k = `iftar_cache_${user.id}_${selectedYear}_donations`; const r = localStorage.getItem(k); return r ? JSON.parse(r) : null; } catch { return null; } })();
+    const cachedExpenses  = (() => { try { const k = `iftar_cache_${user.id}_${selectedYear}_expenses`;  const r = localStorage.getItem(k); return r ? JSON.parse(r) : null; } catch { return null; } })();
+    if (cachedDonations) setDonations(cachedDonations);
+    if (cachedExpenses)  setExpenses(cachedExpenses);
+
+    // 2. If offline, stop here — cached data is already displayed
+    if (!navigator.onLine) return;
+
+    // 3. Fetch fresh data and update cache
+    try {
+      const [fetchedDonations, fetchedExpenses] = await Promise.all([
+        dbService.getDonations(user.id, selectedYear),
+        dbService.getExpenses(user.id, selectedYear)
+      ]);
+      setDonations(fetchedDonations);
+      setExpenses(fetchedExpenses);
+      localStorage.setItem(`iftar_cache_${user.id}_${selectedYear}_donations`, JSON.stringify(fetchedDonations));
+      localStorage.setItem(`iftar_cache_${user.id}_${selectedYear}_expenses`,  JSON.stringify(fetchedExpenses));
+    } catch (error) {
+      console.warn('Network fetch failed, showing cached data:', error);
     }
   }, [user, selectedYear]);
 
@@ -134,28 +168,89 @@ function App() {
   }, [donations, expenses]);
 
   // Handlers
+
+  // Process the offline queue — called automatically when coming back online
+  const processOfflineQueue = useCallback(async () => {
+    if (!user) return;
+    const queue = await offlineQueue.getAll();
+
+    for (const action of queue) {
+      try {
+        if (action.type === 'ADD_DONATION') {
+          await dbService.addDonation(action.payload as Donation);
+        } else if (action.type === 'ADD_EXPENSE') {
+          await dbService.addExpense(action.payload as Expense);
+        }
+        await offlineQueue.remove(action.id);
+      } catch (err) {
+        console.error('Offline sync failed for action', action.id, err);
+        // Leave in queue for next attempt
+      }
+    }
+
+    const remaining = await offlineQueue.count();
+    setPendingCount(remaining);
+    // Always refresh from server after coming back online (with or without a queue)
+    await refreshData();
+  }, [user, refreshData]);
+
+  // Load initial pending count + listen for online/offline transitions
+  useEffect(() => {
+    offlineQueue.count().then(setPendingCount);
+
+    const handleOnline = async () => {
+      setIsOnline(true);
+      await processOfflineQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [processOfflineQueue]);
+
+  const showOfflineToast = (msg: string) => {
+    setOfflineToast(msg);
+    setTimeout(() => setOfflineToast(''), 4000);
+  };
+
   const handleAddDonation = async (data: Omit<Donation, 'id' | 'userId'>) => {
     if (!user || isReadOnly) return;
     const newDonation: Donation = {
       ...data,
       id: crypto.randomUUID(),
       userId: user.id,
-      year: data.year || selectedYear // Ensure year is set
+      year: data.year || selectedYear
     };
-    await dbService.addDonation(newDonation);
+    const result = await dbService.addDonation(newDonation);
     setDonations(prev => [...prev, newDonation]);
+    if ((result as any)._queued) {
+      const count = await offlineQueue.count();
+      setPendingCount(count);
+    }
   };
 
   const handleUpdateDonation = async (updatedDonation: Donation) => {
     if (!user || isReadOnly) return;
-    await dbService.updateDonation(updatedDonation);
-    setDonations(prev => prev.map(d => d.id === updatedDonation.id ? updatedDonation : d));
+    try {
+      await dbService.updateDonation(updatedDonation);
+      setDonations(prev => prev.map(d => d.id === updatedDonation.id ? updatedDonation : d));
+    } catch (err) {
+      if (err instanceof OfflineError) { showOfflineToast(err.message); } else { throw err; }
+    }
   };
 
   const handleDeleteDonation = async (id: string) => {
     if (!user || isReadOnly) return;
-    await dbService.deleteDonation(id);
-    setDonations(prev => prev.filter(d => d.id !== id));
+    try {
+      await dbService.deleteDonation(id);
+      setDonations(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      if (err instanceof OfflineError) { showOfflineToast(err.message); } else { throw err; }
+    }
   };
 
   const handleAddExpense = async (data: Omit<Expense, 'id' | 'userId'>) => {
@@ -164,22 +259,34 @@ function App() {
       ...data,
       id: crypto.randomUUID(),
       userId: user.id,
-      year: data.year || selectedYear // Ensure year is set
+      year: data.year || selectedYear
     };
-    await dbService.addExpense(newExpense);
+    const result = await dbService.addExpense(newExpense);
     setExpenses(prev => [...prev, newExpense]);
+    if ((result as any)._queued) {
+      const count = await offlineQueue.count();
+      setPendingCount(count);
+    }
   };
 
   const handleUpdateExpense = async (updatedExpense: Expense) => {
     if (!user || isReadOnly) return;
-    await dbService.updateExpense(updatedExpense);
-    setExpenses(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
+    try {
+      await dbService.updateExpense(updatedExpense);
+      setExpenses(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
+    } catch (err) {
+      if (err instanceof OfflineError) { showOfflineToast(err.message); } else { throw err; }
+    }
   };
 
   const handleDeleteExpense = async (id: string) => {
     if (!user || isReadOnly) return;
-    await dbService.deleteExpense(id);
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    try {
+      await dbService.deleteExpense(id);
+      setExpenses(prev => prev.filter(e => e.id !== id));
+    } catch (err) {
+      if (err instanceof OfflineError) { showOfflineToast(err.message); } else { throw err; }
+    }
   };
 
   const handleCategoryChange = async () => {
@@ -252,7 +359,14 @@ function App() {
   }
 
   return (
-    <Layout currentTab={activeTab} onTabChange={setActiveTab}>
+    <Layout currentTab={activeTab} onTabChange={setActiveTab} isOnline={isOnline} pendingCount={pendingCount}>
+      {/* Offline action toast */}
+      {offlineToast && (
+        <div className="fixed top-4 left-4 right-4 z-[70] bg-amber-500 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in slide-in-from-top duration-300">
+          <WifiOff size={16} className="flex-shrink-0" />
+          <span>{offlineToast}</span>
+        </div>
+      )}
       <div className="space-y-4 pt-2">
         
         {/* Year Selector - only visible on Dashboard */}

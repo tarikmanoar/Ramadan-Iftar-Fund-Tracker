@@ -1,82 +1,66 @@
-const CACHE_NAME = 'iftar-fund-v2';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+// Increment this version string whenever you deploy UI changes.
+// The SW will activate immediately (skipWaiting) and all clients reload.
+const CACHE_VERSION = 'iftar-fund-v4';
+const SHELL_URLS = ['/', '/index.html', '/manifest.json'];
 
-// Install SW and cache static assets (App Shell)
+// ── Install: pre-cache the app shell, then skip waiting ──────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL_URLS))
   );
+  // Don't wait for existing tabs to close — activate this SW immediately.
+  self.skipWaiting();
 });
 
-// Activate SW and clean up old caches
+// ── Activate: delete old caches, claim all clients immediately ───────────────
 self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // Take control of every open tab without a page reload.
+      self.clients.claim(),
+      // Purge caches from previous versions.
+      caches.keys().then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+      ),
+    ])
   );
 });
 
-// Fetch Strategy
+// ── Fetch: network-first for same-origin assets, skip everything else ────────
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Don't intercept cross-origin API calls (let browser handle them directly)
-  if (url.origin !== self.location.origin) {
-    return;
-  }
+  // 1. Let cross-origin requests (API server, Google Fonts, …) pass through untouched.
+  if (url.origin !== self.location.origin) return;
 
-  // Strategy: Network Only for Data/API calls
-  // (Ensures we never serve stale data from cache)
-  if (url.pathname.includes('/api/') || url.href.includes('google')) {
-    event.respondWith(
-      fetch(event.request)
-        .catch((error) => {
-          console.error('Service Worker fetch failed:', error);
-          // Optional: Return a specific offline JSON response for data
-          return new Response(JSON.stringify({ error: 'Network error' }), {
-            headers: { 'Content-Type': 'application/json' }
-          });
-        })
-    );
-    return;
-  }
+  // 2. Never cache API calls — always go to the network.
+  if (url.pathname.startsWith('/api/')) return;
 
-  // Strategy: Stale-While-Revalidate for static assets (Scripts, CSS, Images)
-  // This makes the app load fast but updates in the background
+  // 3. Only cache GET requests.
+  if (event.request.method !== 'GET') return;
+
+  // 4. Network-first strategy for all same-origin GET requests (HTML / JS / CSS / images).
+  //    • Online  → fetch fresh copy, update cache, return fresh response.
+  //    • Offline → return cached copy so the app still loads.
+  //    • SPA fallback: if no cache match for a navigation, serve /index.html.
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Fetch latest version from network
-        const fetchPromise = fetch(event.request).then(
-          (networkResponse) => {
-            // Update cache with new version
-            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-              const responseToCache = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            }
-            return networkResponse;
-          }
-        );
-        // Return cached response immediately if available, otherwise wait for network
-        return response || fetchPromise;
+    fetch(event.request)
+      .then((networkResponse) => {
+        // Only cache valid responses (status 200, same-origin).
+        if (networkResponse.ok && networkResponse.type === 'basic') {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, clone));
+        }
+        return networkResponse;
       })
+      .catch(() =>
+        caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          // SPA fallback: serve index.html for in-app navigation routes.
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        })
+      )
   );
 });

@@ -1,6 +1,6 @@
 import React, { ReactNode, useState } from 'react';
 import { useAuth } from '../services/authContext';
-import { Moon } from 'lucide-react';
+import { Moon, WifiOff } from 'lucide-react';
 import { APP_NAME } from '../constants';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -8,9 +8,11 @@ interface LayoutProps {
   children: ReactNode;
   currentTab?: 'dashboard' | 'donations' | 'expenses';
   onTabChange?: (tab: 'dashboard' | 'donations' | 'expenses') => void;
+  isOnline?: boolean;
+  pendingCount?: number;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChange }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChange, isOnline = true, pendingCount = 0 }) => {
   const { user, logout } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -52,6 +54,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChang
           )}
         </div>
       </header>
+
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="relative z-10 mx-4 mt-1 mb-0">
+          <div className="bg-amber-500 text-white text-xs font-bold px-4 py-2.5 rounded-2xl flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-2">
+              <WifiOff size={14} />
+              <span>You're offline — new entries will sync when reconnected</span>
+            </div>
+            {pendingCount > 0 && (
+              <span className="bg-white/30 text-white px-2 py-0.5 rounded-full text-xs font-bold ml-2 flex-shrink-0">
+                {pendingCount} pending
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content with bottom padding for nav */}
       <main className="flex-1 relative z-10 px-4 pb-32 overflow-y-auto">
